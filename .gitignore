@@ -1,0 +1,5 @@
+.DS_Store
+*.log
+# Datos reales de clientes: NUNCA al repositorio
+datos/
+*.backup.json

@@ -7,9 +7,26 @@
 | Datos | Firebase (plan gratis): Google login + Firestore en tiempo real + modo sin internet. |
 | Seguridad | Google login + PIN; huella/Face ID vía passkeys (fase 2: biometría nativa). |
 | IA | API de Claude. 5 cerebros: Harvey, Mike, Louis, Donna, Jessica. |
-| Permisos IA | Tareas/agenda: libre. Dinero: siempre pide confirmación. |
+| Permisos IA | Toda escritura muestra tarjeta de confirmación Sí / No. |
 | Estilo | Base oscura NEXO + color de acento propio por app. |
 | Actualizaciones | Cada app es un paquete independiente en `apps/`, con su versión y botón "Actualizar". |
+
+## Respuestas del proyecto (25-nov-2026)
+| Tema | Decisión de Cristóbal |
+|---|---|
+| Presupuesto IA/servidores | Hasta $50.000 COP/mes |
+| Dispositivos | Android, iPhone y Windows por igual |
+| Apple | Solo iPhone, sin Mac → iOS como PWA instalada desde Safari |
+| Programación | Nivel cero: Claude programa todo |
+| Enfoque | Que funcione primero, aprender después |
+| Asistente | Texto y voz en ambos sentidos |
+| Qué cerebro responde | Elige la IA, lo elijo yo, o todos opinan y Donna resume |
+| Permisos IA | Todo cambio se confirma con un botón Sí / No |
+| Uso | Solo personal por ahora; preparado para varios usuarios (posible venta) |
+| Sin internet | Sí, con sincronización después |
+| Integraciones | Gmail |
+| Estilo | Tablero oscuro, colores llamativos sin exceso gamer; cada app con estilo y logo propios |
+| Cuestionarios | Siempre en formato tocable (artifact "NEXO Cuestionarios") |
 
 ## Estructura del repo
 ```

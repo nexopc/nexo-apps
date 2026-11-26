@@ -4,7 +4,6 @@ import { store } from './store.js';
 
 export const PLAN_URL = 'https://nexopc.github.io/Nexo-plan/';
 export const PLAN_CATS = ['app', 'video', 'creador', 'agencia', 'nexo', 'ingles', 'ejercicio', 'cliente', 'tareas', 'colegio', 'dormir', 'rutina', 'libre'];
-const INBOX = 'nexo:plan:inbox';
 const ch = 'BroadcastChannel' in self ? new BroadcastChannel('nexo-brain') : null;
 
 export const planInfo = () => store.raw('planBridge')[0] || null;
@@ -15,9 +14,8 @@ export function planDay(date) {
   return t.toISOString().slice(0, 10) === date ? p.manana || [] : null;
 }
 export function sendToPlan(msg) {
-  let q; try { q = JSON.parse(localStorage.getItem(INBOX) || '[]'); } catch { q = []; }
-  q.push({ ...msg, at: new Date().toISOString() });
-  localStorage.setItem(INBOX, JSON.stringify(q));
+  // Va por NEXO Brain → Supabase: llega a NEXO PLAN en cualquier dispositivo.
+  store.add('planInbox', { ...msg, at: new Date().toISOString() });
   ch?.postMessage({ col: 'planInbox' });
 }
 // Para no mandar dos veces lo mismo (automatizaciones)

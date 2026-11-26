@@ -1,10 +1,7 @@
-// Configuración de Firebase (cuenta de Google + respaldo en la nube).
-// Pega aquí los datos de tu proyecto: console.firebase.google.com → Configuración del proyecto → Tus apps → Web.
-// Mientras esté vacío, todo funciona en "modo local" (solo en este dispositivo).
-export const FIREBASE_CONFIG = {
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  appId: '',
-};
-export const hasFirebase = () => !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId);
+// Conexión con Supabase (base de datos de la red NEXO).
+// La URL y la clave publicable son PÚBLICAS por diseño: lo que protege tus datos son las reglas RLS
+// (cada fila solo la ve su dueño). Las claves secretas nunca van aquí.
+export const SUPABASE_URL = 'https://tfdxuqvsqdrvbgujooya.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_QZE-PJSRxAnaymQ03ephDg_wm6V4mUy';
+export const HARVEY_URL = SUPABASE_URL + '/functions/v1/harvey';
+export const hasCloud = () => !!(SUPABASE_URL && SUPABASE_KEY);

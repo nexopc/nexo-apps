@@ -163,7 +163,7 @@ function settings() {
   const user = cloud.user();
   const body = h(`<div class="form">
     <div class="card"><h3>☁️ Cuenta y respaldo</h3>
-      <p class="muted" style="margin:0 0 10px">${cloud.available() ? (user ? `Conectado como <b>${esc(user.email)}</b>. Tus datos se sincronizan en todos tus dispositivos.` : 'Entra con Google para respaldar y usar tus datos en otros dispositivos.') : 'Modo local: falta configurar Firebase (ver docs/INSTALAR.md). Tus datos están solo en este dispositivo.'}</p>
+      <p class="muted" style="margin:0 0 10px">${user ? `Conectado como <b>${esc(user.email)}</b>. Tus datos se sincronizan en todos tus dispositivos y Claude los puede leer.` : 'Entra con Google para tener tus datos en todos tus dispositivos. Mientras tanto se guardan aquí y se suben al entrar.'}</p>
       <div class="row">${cloud.available() ? (user ? '<button class="btn btn-cancel sm" data-a="out">Cerrar sesión</button>' : '<button class="btn btn-create sm" data-a="google">G  Entrar con Google</button>') : ''}
       <button class="btn btn-edit ghost sm" data-a="export">⬇ Exportar copia</button><button class="btn btn-edit ghost sm" data-a="import">⬆ Importar copia</button></div></div>
     <div class="card"><h3>🔒 Seguridad</h3>
@@ -205,7 +205,7 @@ function askPin(title) {
 function applyTheme() { document.documentElement.dataset.theme = prefs.get('theme', 'dark'); }
 
 // ---------- Arranque de una app ----------
-export async function boot({ appId, version, modules, home, staticHome = false }) {
+export async function boot({ appId, version, modules, home, staticHome = false, quick = [] }) {
   const app = appById(appId);
   ctx = { app, version, modules, home };
   applyPlatform(); applyTheme();
@@ -221,6 +221,7 @@ export async function boot({ appId, version, modules, home, staticHome = false }
       <a class="brand" href="../../index.html" title="Volver al Hub NEXO"><span class="logo">${LOGOS[app.id] || LOGOS.custom}</span><span><b>${esc(app.name)}</b><small>${esc(app.tagline)}</small></span></a>
       <div class="top-actions">
         <button class="icon-btn ios-add" data-a="add" aria-label="Agregar" style="color:var(--c-create);font-size:22px">＋</button>
+        <button class="icon-btn sync-dot" data-a="settings" aria-label="Estado de sincronización" title="Sincronización"><i></i></button>
         <button class="icon-btn" data-a="update" aria-label="Actualizar esta app" title="Actualizar ${esc(app.name)}">⟳<span class="badge" hidden></span></button>
         <button class="icon-btn" data-a="settings" aria-label="Ajustes">⚙︎</button>
       </div>
@@ -249,7 +250,16 @@ export async function boot({ appId, version, modules, home, staticHome = false }
   };
   const paint = () => {
     const m = current;
-    if (m.id === 'home') { view.innerHTML = ''; home(view, api); return; }
+    if (m.id === 'home') {
+      view.innerHTML = '';
+      if (quick.length) {
+        const q = h(`<div class="quick4" role="group" aria-label="Acciones rápidas">${quick.map((b, i) => `<button class="q4" data-q4="${i}" style="--qc:${b.color}" title="${esc(b.label)}${isDesktopLike ? ' (Ctrl+' + (i + 1) + ')' : ''}"><span class="q4i">${b.icon}</span><b>${esc(b.label)}</b></button>`).join('')}</div>`);
+        q.onclick = (e) => { const b = e.target.closest('[data-q4]'); if (b) { haptic(12); quick[+b.dataset.q4].run(api); } };
+        view.appendChild(q);
+      }
+      const body = document.createElement('div'); view.appendChild(body);
+      home(body, api); return;
+    }
     view.innerHTML = `<div class="page-title"><h1>${m.icon} ${esc(m.title)}</h1>${m.headerExtra ? m.headerExtra() : ''}</div><div id="mod"></div>`;
     const el = $('#mod', view);
     m.render ? m.render(el, api) : renderList(el, m);
@@ -290,10 +300,22 @@ export async function boot({ appId, version, modules, home, staticHome = false }
   if (isDesktopLike) document.addEventListener('keydown', (e) => {
     if (e.target.closest('input,textarea,select,[contenteditable]')) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openHarvey(); }
+    else if ((e.ctrlKey || e.metaKey) && /^[1-4]$/.test(e.key) && quick[+e.key - 1]) { e.preventDefault(); quick[+e.key - 1].run(api); }
     else if (e.key === 'n' || e.key === 'N') addCurrent();
     else if (/^[1-9]$/.test(e.key) && navMods[+e.key - 1]) go(navMods[+e.key - 1].id);
   });
 
+  // Estado de la nube: punto de color en la barra + aviso para entrar con Google
+  const LABEL = { local: 'Solo en este dispositivo', conectando: 'Conectando…', sincronizado: 'Sincronizado', 'sin-internet': 'Sin internet: se sube al volver', error: 'Error al sincronizar' };
+  cloud.onStatus((st) => { const d = root.querySelector('.sync-dot'); if (d) { d.dataset.st = st; d.title = LABEL[st] || st; } });
+  cloud.onAuth((u) => {
+    let b = document.querySelector('.login-banner');
+    if (u) { b?.remove(); return; }
+    if (b || !cloud.available()) return;
+    b = h(`<div class="login-banner"><span>☁️ Entra con Google para tener tus datos en todos tus dispositivos.</span><button class="btn btn-create sm" data-login>Entrar con Google</button></div>`);
+    view.before(b);
+    b.querySelector('[data-login]').onclick = () => cloud.signIn().catch((e) => toast(e.message || 'No se pudo entrar'));
+  });
   go(location.hash.slice(1) || 'home', false);
   checkUpdate(appId, prefs.get('ver:' + appId)).then((u) => { if (u.has) $('[data-a=update] .badge').hidden = false; });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('../../sw.js', { scope: '../../' }).catch(() => {});

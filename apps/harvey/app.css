@@ -9,3 +9,7 @@ body { background: radial-gradient(900px 420px at 50% -10%, color-mix(in srgb, v
 .appc { display: grid; gap: 6px; text-decoration: none; color: inherit; border-top: 3px solid var(--k); }
 .appc .ic { width: 30px; height: 30px; display: grid; place-items: center; color: var(--k); }
 .appc .ic svg { width: 22px; height: 22px; }
+
+/* Mezcla: grafito y dorado del documento */
+:root { --bg: #111216; --bg2: #16171C; --panel: #1B1C22; --panel2: #22232A; --line: #2E2F37; }
+:root[data-theme="light"] { --bg: #F6F4EE; --bg2: #EFEBE1; --panel: #FFFFFF; --panel2: #F7F3EA; --line: #E4DCC8; }

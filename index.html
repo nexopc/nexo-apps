@@ -43,7 +43,7 @@
 <div class="hub">
   <header class="hub-head">
     <div class="brand"><span class="logo" id="logo"></span><span><b>NEXO</b><small class="slogan">Excelencia digital, confianza real</small></span></div>
-    <div class="row"><span class="chip" id="cloud">● modo local</span><button class="icon-btn" id="cfg" aria-label="Ajustes">⚙︎</button></div>
+    <div class="row"><button type="button" class="chip" id="cloud">● modo local</button><button class="icon-btn" id="cfg" aria-label="Ajustes">⚙︎</button></div>
   </header>
   <h1 class="greet" id="greet">Hola, Cristóbal</h1>
   <p class="muted" id="today" style="margin:0;text-transform:capitalize"></p>
@@ -113,11 +113,20 @@
       <li>En el otro celular o PC abre esta misma dirección: <b>${esc(location.origin + location.pathname.replace(/index\.html$/, ''))}</b></li>
       <li><b>Android/Windows:</b> menú del navegador → <i>Instalar app</i>. <b>iPhone:</b> Safari → Compartir → <i>Agregar a inicio</i>.</li>
       <li>Entra con la <b>misma cuenta de Google</b> (⚙︎ Ajustes) y todo se sincroniza solo.</li></ol>
-      ${cloud.available() ? '' : '<p class="chip s-pending" style="white-space:normal">Primero configura Firebase (docs/INSTALAR.md). Sin eso, cada dispositivo guarda sus datos por separado.</p>'}</div>`);
+      ${cloud.user() ? '' : '<button class="btn btn-create" data-login>Entrar con Google en este dispositivo</button>'}</div>`);
     sheet('Agregar dispositivo', body);
+    body.querySelector('[data-login]')?.addEventListener('click', () => cloud.signIn().catch((e) => toast(e.message || 'No se pudo entrar')));
   };
   document.getElementById('cfg').onclick = () => openSettings();
-  if (cloud.available()) { cloud.init(); cloud.onAuth((u) => { document.getElementById('cloud').textContent = u ? '● sincronizado' : '● sin sesión'; document.getElementById('cloud').className = 'chip ' + (u ? 's-create' : 's-pending'); }); }
+  if (cloud.available()) {
+    const chip = document.getElementById('cloud');
+    const LABEL = { local: '● entrar con Google', conectando: '● conectando…', sincronizado: '● sincronizado', 'sin-internet': '● sin internet', error: '● error de sincronización' };
+    cloud.init();
+    cloud.onStatus((st) => { chip.textContent = cloud.user() ? (LABEL[st] || st) : LABEL.local; chip.className = 'chip ' + (st === 'sincronizado' ? 's-create' : st === 'error' ? 's-delete' : 's-pending'); });
+    cloud.onAuth(() => { chip.textContent = cloud.user() ? LABEL[cloud.status()] : LABEL.local; });
+    chip.style.cursor = 'pointer';
+    chip.onclick = () => (cloud.user() ? openSettings() : cloud.signIn().catch((e) => toast(e.message || 'No se pudo entrar')));
+  }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>

@@ -4,7 +4,7 @@
 | Tema | Decisión |
 |---|---|
 | Código | HTML + JavaScript sin compilación (PWA). Un solo código que se adapta a Android, iOS y Windows (`core/platform.js` + `core/nexo.css`). Empaquetado nativo opcional después con Capacitor/Tauri. |
-| Datos | Firebase (plan gratis): Google login + Firestore en tiempo real + modo sin internet. |
+| Datos | Supabase (plan gratis): login con Google, tabla `registros` en tiempo real con RLS, cola sin internet. |
 | Seguridad | Google login + PIN; huella/Face ID vía passkeys (fase 2: biometría nativa). |
 | IA | API de Claude. 5 cerebros: Harvey, Mike, Louis, Donna, Jessica. |
 | Permisos IA | Toda escritura muestra tarjeta de confirmación Sí / No. |
@@ -35,14 +35,14 @@ nexo-apps/
 ├─ sw.js        # sin internet + una caché por app (actualizaciones independientes)
 ├─ core/
 │  ├─ store.js       # NEXO Brain: datos locales + tiempo real entre apps
-│  ├─ sync.js        # Google login + Firebase (todos los dispositivos)
+│  ├─ sync.js        # login con Google + Supabase en tiempo real
 │  ├─ schema.js      # esquema ÚNICO de datos (apps + Harvey)
 │  ├─ shell.js       # barra, navegación por SO, formularios, botón ⟳, ajustes
 │  ├─ security.js    # PIN + Face ID / huella (passkey)
 │  ├─ harvey.js      # IA: 5 cerebros, herramientas con confirmación Sí/No, voz
 │  ├─ automations.js # cobro pagado → ingreso; parcial/grabación → agenda
 │  ├─ platform.js    # iOS / Android / Windows
-│  └─ vendor/        # SDK de Claude y Firebase empaquetados
+│  └─ vendor/        # SDK de Claude y Supabase empaquetados
 ├─ apps/
 │  ├─ finanzas/   # NEXO Finanzas · tu plata      (acento: verde)
 │  ├─ negocios/   # NEXO Negocios · tu trabajo    (acento: naranja)

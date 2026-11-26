@@ -37,19 +37,34 @@ export const SCHEMA = {
   ] },
 
   // ---------- NEXO Negocios ----------
-  sources: { app: 'negocios', label: 'Fuentes de ingreso', fields: [
-    { k: 'name', label: 'Fuente', required: true, ph: 'Agencia de marketing, Edición de video, Webs…' }, { k: 'color', label: 'Color', type: 'color' },
+  sources: { app: 'negocios', label: 'Marcas / fuentes de ingreso', fields: [
+    { k: 'name', label: 'Marca o fuente', required: true, ph: 'NEXO PC, Agencia, Marca personal…' }, { k: 'color', label: 'Color', type: 'color' },
+    { k: 'lema', label: 'Lema' }, { k: 'cliente', label: 'Cliente ideal' },
     { k: 'account', label: 'Cuenta de Finanzas', type: 'ref', ref: 'accounts' },
   ] },
   services: { app: 'negocios', label: 'Catálogo de servicios', fields: [
-    { k: 'name', label: 'Servicio', required: true }, { k: 'source', label: 'Fuente', type: 'ref', ref: 'sources' },
-    { k: 'price', label: 'Precio', type: 'money', required: true }, { k: 'hours', label: 'Horas estimadas', type: 'number' },
-    { k: 'desc', label: 'Qué incluye', type: 'textarea' },
+    { k: 'name', label: 'Servicio', required: true, ph: 'Páginas web' }, { k: 'source', label: 'Marca', type: 'ref', ref: 'sources' },
+    { k: 'plan', label: 'Plan', type: 'select', options: ['Básico', 'Pro', 'Premium', 'Esencial', 'Completo', 'Élite', 'Único'] },
+    { k: 'price', label: 'Precio', type: 'money', required: true }, { k: 'monthly', label: 'Mensualidad (si aplica)', type: 'money' },
+    { k: 'mensual', label: 'Es un servicio mensual', type: 'check' }, { k: 'hours', label: 'Horas estimadas', type: 'number' },
+    { k: 'anticipo', label: 'Anticipo %', type: 'number', default: 50 },
+    { k: 'desc', label: 'Qué incluye', type: 'textarea' }, { k: 'noIncluye', label: 'No incluye', type: 'textarea' },
   ] },
   combos: { app: 'negocios', label: 'Combos', fields: [
-    { k: 'name', label: 'Combo', required: true }, { k: 'items', label: 'Servicios incluidos (separados por coma)', type: 'textarea' },
-    { k: 'price', label: 'Precio del combo', type: 'money', required: true },
+    { k: 'name', label: 'Combo', required: true }, { k: 'source', label: 'Marca', type: 'ref', ref: 'sources' }, { k: 'para', label: 'Para', ph: 'Persona, Negocio…' },
+    { k: 'items', label: 'Qué incluye', type: 'textarea' },
+    { k: 'separate', label: 'Precio por separado', type: 'money' }, { k: 'price', label: 'Precio del combo', type: 'money', required: true },
   ] },
+  registroDiario: { app: 'negocios', label: 'Registro diario de ventas (se llena cada noche)', fields: [
+    { k: 'date', label: 'Fecha', type: 'date', today: true },
+    { k: 'contactos', label: 'Contactos nuevos', type: 'number' }, { k: 'seguimientos', label: 'Seguimientos', type: 'number' },
+    { k: 'cotizaciones', label: 'Cotizaciones', type: 'number' }, { k: 'ventas', label: 'Ventas', type: 'number' },
+    { k: 'videos', label: 'Videos publicados', type: 'number' }, { k: 'horasProd', label: 'Horas de producción', type: 'number', step: 0.5 },
+    { k: 'cobrado', label: 'Plata cobrada hoy (se suma a Finanzas)', type: 'money' },
+    { k: 'funciono', label: '¿Qué funcionó?', type: 'textarea' }, { k: 'nofunciono', label: '¿Qué no funcionó?', type: 'textarea' },
+    { k: 'top1', label: 'Lo número 1 de mañana' },
+  ] },
+  config: { app: 'negocios', label: 'Configuración y metas (Plan $10M)', hidden: true, fields: [{ k: 'nombre', label: 'Nombre' }] },
   clients: { app: 'negocios', label: 'Clientes', fields: [
     { k: 'name', label: 'Cliente / negocio', required: true }, { k: 'contact', label: 'Contacto (WhatsApp)', ph: '300…' },
     { k: 'kind', label: 'Tipo', type: 'select', options: ['Tienda local', 'Emprendedor', 'Empresa', 'Persona'] }, { k: 'note', label: 'Notas', type: 'textarea' },

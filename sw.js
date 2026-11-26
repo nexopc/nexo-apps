@@ -18,7 +18,7 @@ self.addEventListener('message', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin) return; // API de Claude, Firebase: siempre red
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return; // API de Claude y Supabase: siempre red
   // version.json y manifiestos: siempre buscar lo más nuevo en la red
   if (url.pathname.endsWith('/version.json') || url.pathname.endsWith('.webmanifest')) {
     e.respondWith(fetch(e.request, { cache: 'no-store' }).catch(() => caches.match(e.request)));

@@ -1,7 +1,9 @@
 // NEXO Finanzas · tu plata
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
+import { estado, grafica, P10_CSS, SEMA } from '../../core/plan10m.js';
+{ const st = document.createElement('style'); st.textContent = P10_CSS; document.head.appendChild(st); }
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const month = () => fmt.today().slice(0, 7);
 const sum = (arr) => arr.reduce((a, t) => a + (Number(t.amount) || 0), 0);
 const txMonth = (m = month()) => store.list('transactions').filter((t) => (t.date || '').startsWith(m));
@@ -169,6 +171,30 @@ const libertad = { id: 'libertad', title: 'Libertad financiera', icon: '🧭',
       <div class="path section">${steps.map(([t, d, ok], i) => `<div class="step ${ok ? 'ok' : i === cur ? 'cur' : ''}"><span class="n">${ok ? '✓' : i + 1}</span><div><b>${t}</b><div class="muted" style="font-size:13px">${esc(d)}</div></div></div>`).join('')}</div>`;
   } };
 
+
+// ---------- Meta de ventas (Plan $10M) ----------
+function metaCard(full = false) {
+  const e = estado(); if (!e) return '';
+  const pct = Math.min(100, Math.round((e.acc / e.p.meta) * 100));
+  return `<div class="card p10">
+    <div class="row" style="justify-content:space-between"><b>🎯 ${esc(e.p.nombre)} · al ${fmt.date(e.p.fin)}</b><span class="chip num">${e.diasRest} días</span></div>
+    <div class="num" style="font:700 30px var(--display)">${fmt.money(e.acc)} <span class="muted" style="font-size:15px;font-weight:500">de ${fmt.money(e.p.meta)}</span></div>
+    <div class="bar"><i style="width:${pct}%;background:${SEMA[e.color]}"></i></div>
+    <div class="sema" style="--sc:${SEMA[e.color]}"><span class="luz"></span><div><b>${e.color === 'verde' ? 'Verde' : e.color === 'amarillo' ? 'Amarillo' : 'Rojo'}:</b> ${esc(e.msg)}<div class="muted num" style="font-size:13px">Deberías llevar ${fmt.money(e.meta)} · mínimo ${fmt.money(e.minimo)} · hoy la meta es ${fmt.money(e.metaDia)}</div></div></div>
+    ${full ? grafica(e.p) : ''}
+    ${full && e.etapa ? `<div class="muted">Etapa actual: <b style="color:var(--fg)">${esc(e.etapa.n)}</b> (${fmt.date(e.etapa.desde)} – ${fmt.date(e.etapa.hasta)}) · meta de la etapa ${fmt.money(e.etapa.meta)}</div>` : ''}
+    ${full ? `<div class="grid k"><div class="card kpi"><div class="v num">${fmt.money(e.falta)}</div><div class="l">te falta</div></div><div class="card kpi"><div class="v num">${fmt.money(e.diasRest ? Math.ceil(e.falta / e.diasRest) : e.falta)}</div><div class="l">por día para llegar</div></div><div class="card kpi"><div class="v num">${fmt.money(e.p.minimo)}</div><div class="l">mínimo aceptable</div></div><div class="card kpi"><div class="v num">${fmt.money(e.p.maximo)}</div><div class="l">si todo sale perfecto</div></div></div>` : ''}
+  </div>`;
+}
+const metaVentas = { id: 'meta', title: 'Meta $10M', icon: '🎯',
+  render(el) {
+    const html = metaCard(true);
+    el.innerHTML = html || '<div class="empty"><b>Sin meta de ventas</b>Entra con Google: tu Plan $10M se carga solo desde la nube.</div>';
+    if (html) { el.insertAdjacentHTML('beforeend', '<div class="row section"><button class="btn btn-ai" data-a="louis">🟣 Louis: ¿cómo voy con la meta?</button><button class="btn btn-create ghost" data-a="reg">＋ Registro de hoy (Negocios)</button></div>');
+      el.querySelector('[data-a=louis]').onclick = () => openHarvey('Louis: revisa mi meta de $10M. ¿Voy en verde, amarillo o rojo? ¿Cuánto debo cobrar por día desde hoy y qué cobros pendientes debo perseguir?');
+      el.querySelector('[data-a=reg]').onclick = () => { location.href = '../negocios/index.html#registro'; }; }
+  } };
+
 // ---------- Inicio ----------
 function home(el) {
   const bs = balances();
@@ -178,9 +204,9 @@ function home(el) {
   const nexo = store.list('savings').find((s) => /nexo/i.test(s.name)) || store.list('savings')[0];
   const alerts = autoAlerts().slice(0, 3);
   const last = store.list('transactions').sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
-  el.innerHTML = `<div class="hero card"><span class="muted">Tienes en total</span><div class="big num">${fmt.money(total)}</div>
+  el.innerHTML = metaCard() + `<div class="hero card" style="margin-top:12px"><span class="muted">Tienes en total</span><div class="big num">${fmt.money(total)}</div>
       <div class="row num" style="gap:16px"><span class="up">▲ ${fmt.money(inc)} este mes</span><span class="down">▼ ${fmt.money(out)}</span></div>
-      <div class="row" style="margin-top:14px"><button class="btn btn-delete" data-new="gasto">− Gasto</button><button class="btn btn-create" data-new="ingreso">＋ Ingreso</button></div></div>
+</div>
     ${alerts.length ? `<div class="list section">${alerts.map(([c, t]) => `<div class="list-item" style="cursor:default"><span class="chip ${c}">!</span><div class="li-main" style="white-space:normal;font-size:14px">${esc(t)}</div></div>`).join('')}</div>` : ''}
     <div class="grid section">
       ${nexo ? `<div class="card"><h3>🐷 ${esc(nexo.name)}</h3><div class="num"><b>${fmt.money(nexo.saved || 0)}</b> <span class="muted">de ${fmt.money(nexo.target)}</span></div><div class="bar" style="margin-top:10px"><i style="width:${Math.min(100, ((nexo.saved || 0) / (nexo.target || 1)) * 100)}%"></i></div></div>` : '<div class="card"><h3>🐷 Meta NEXO PC</h3><p class="muted" style="margin:0">Créala en Ahorro para ver tu avance aquí.</p></div>'}
@@ -190,4 +216,10 @@ function home(el) {
   el.onclick = (e) => { const b = e.target.closest('[data-new]'); if (b) openForm(movimientos, null, { type: b.dataset.new, account: store.list('accounts')[0]?.id || '' }); };
 }
 
-boot({ appId: 'finanzas', version: VERSION, home, modules: [movimientos, cuentas, presupuesto, ahorro, suscripciones, alertas, reportes, libertad] });
+const QUICK = [
+  { label: 'Ingreso', icon: '＋', color: '#1CE783', run: () => openForm(movimientos, null, { type: 'ingreso', account: store.list('accounts')[0]?.id || '' }) },
+  { label: 'Gasto', icon: '−', color: '#FF4D4D', run: () => openForm(movimientos, null, { type: 'gasto', account: store.list('accounts')[0]?.id || '' }) },
+  { label: 'Mover plata', icon: '⇄', color: '#7C5CFF', run: () => openForm(movimientos, null, { type: 'traslado', account: store.list('accounts')[0]?.id || '' }) },
+  { label: 'Meta $10M', icon: '🎯', color: '#FFFFFF', run: (api) => api.go('meta') },
+];
+boot({ appId: 'finanzas', version: VERSION, home, quick: QUICK, modules: [movimientos, metaVentas, cuentas, presupuesto, ahorro, suscripciones, alertas, reportes, libertad] });

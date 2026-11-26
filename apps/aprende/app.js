@@ -1,7 +1,7 @@
 // NEXO Aprende · tu estudio
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey, prefs } from '../../core/shell.js';
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const INTERVAL = [1, 2, 4, 8, 16]; // días por caja (sistema Leitner)
 const sname = (id) => store.get('subjects', id)?.name || '';
 const daysTo = (d) => Math.round((new Date(d + 'T12:00') - new Date(fmt.today() + 'T12:00')) / 864e5);
@@ -16,7 +16,7 @@ const dueCards = () => store.list('flashcards').filter((c) => !c.nextDate || c.n
 // Rutas sugeridas (se cargan con un botón; luego las editas)
 const SUGGESTED = {
   'Filmora 16': ['Interfaz y atajos básicos', 'Cortes: dividir, recortar, ripple delete', 'Textos y títulos animados', 'Transiciones con criterio', 'Audio: música, voz, ducking', 'Corrección de color básica', 'Subtítulos automáticos (AI)', 'Plantillas y keyframes', 'Exportar para TikTok/Reels 1080×1920', 'Proyecto final: video para un cliente'],
-  'Claude Code': ['Qué es y cómo pedirle tareas', 'Git y GitHub básico', 'HTML y CSS: leer una página', 'JavaScript: variables, funciones, eventos', 'Publicar una web en GitHub Pages', 'Firebase: login y base de datos', 'Modificar una app NEXO tú mismo', 'Proyecto: app de catálogo de tiendas'],
+  'Claude Code': ['Qué es y cómo pedirle tareas', 'Git y GitHub básico', 'HTML y CSS: leer una página', 'JavaScript: variables, funciones, eventos', 'Publicar una web en GitHub Pages', 'Supabase: login y base de datos', 'Modificar una app NEXO tú mismo', 'Proyecto: app de catálogo de tiendas'],
   'Marketing digital': ['Buyer persona de una tienda en Quibdó', 'Ganchos y guiones para videos cortos', 'Calendario de contenido', 'Meta Business Suite e Instagram profesional', 'Pauta básica (Meta Ads) con $20.000', 'Métricas que importan', 'Cómo cobrar y armar paquetes', 'Reporte mensual para clientes'],
   'Saber 11': ['Lectura crítica: tipos de texto', 'Matemáticas: proporciones y porcentajes', 'Matemáticas: álgebra y funciones', 'Ciencias naturales: química básica', 'Ciencias naturales: física (movimiento, energía)', 'Sociales y ciudadanas: Constitución', 'Inglés: comprensión lectora', 'Simulacro completo 1', 'Simulacro completo 2'],
 };
@@ -146,4 +146,10 @@ function home(el) {
   };
 }
 
-boot({ appId: 'aprende', version: VERSION, home, modules: [materias, parciales, notas, rutas, tarjetas, ingles, apuntes] });
+const QUICK = [
+  { label: 'Repasar', icon: '🃏', color: '#FFD23F', run: (api) => api.go('tarjetas') },
+  { label: 'Apunte', icon: '🗒', color: '#22D3EE', run: () => openForm(apuntes) },
+  { label: 'Ruta', icon: '🧗', color: '#B8F25B', run: (api) => api.go('rutas') },
+  { label: 'Inglés', icon: '🇺🇸', color: '#FF5DA2', run: (api) => api.go('ingles') },
+];
+boot({ appId: 'aprende', version: VERSION, home, quick: QUICK, modules: [materias, parciales, notas, rutas, tarjetas, ingles, apuntes] });

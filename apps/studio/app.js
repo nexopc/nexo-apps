@@ -1,7 +1,7 @@
 // NEXO Studio · tu contenido
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const ST = [['idea', '💡', 'Idea'], ['guion', '📝', 'Guion'], ['grabado', '🎥', 'Grabado'], ['edicion', '✂️', 'Edición'], ['revision', '👀', 'Revisión'], ['publicado', '✅', 'Publicado']];
 const MOLDS = {
   'Gancho-Problema-Solución-CTA': 'GANCHO (0-3 s): \nPROBLEMA (3-10 s): \nSOLUCIÓN (10-40 s): \nCTA (últimos 5 s): ',
@@ -136,4 +136,10 @@ function home(el) {
   };
 }
 
-boot({ appId: 'studio', version: VERSION, home, modules: [videos, ideas, guiones, grabaciones, calendario, metricas, portafolio, referencias] });
+const QUICK = [
+  { label: 'Idea', icon: '💡', color: '#FFE14D', run: () => openForm(ideas) },
+  { label: 'Grabar', icon: '🎥', color: '#FF2E4D', run: () => openForm(grabaciones) },
+  { label: 'Guion', icon: '📝', color: '#FF8A1F', run: () => guiones.onAdd() },
+  { label: 'Publicar', icon: '🚀', color: '#22D3EE', run: (api) => api.go('videos') },
+];
+boot({ appId: 'studio', version: VERSION, home, quick: QUICK, modules: [videos, ideas, guiones, grabaciones, calendario, metricas, portafolio, referencias] });

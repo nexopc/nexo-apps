@@ -48,7 +48,7 @@ const horario = fromSchema('blocks', { id: 'horario', title: 'Horario', icon: '�
         <div class="day-actions"><button class="add-blk" data-adjust="${date}" title="Ajustar solo este día">✏️ Ajustar día</button><button class="add-blk base" data-day="${d}" aria-label="Agregar bloque al horario base del ${DAYS[d]}" title="Agregar al horario base">＋</button></div></section>`;
     }).join('')}</div>`;
     el.onclick = (e) => {
-      if (e.target.closest('[data-a=ai]')) return openHarvey('Reorganiza mi día de hoy según mis tareas pendientes y prioridades. Mantén colegio y trabajo.');
+      if (e.target.closest('[data-a=ai]')) return openHarvey('Reorganiza mi día de hoy según mis tareas pendientes y prioridades. Mantén el colegio y los compromisos con clientes.');
       const b = e.target.closest('.blk');
       if (b) return store.get('dayPlans', 'day-' + b.dataset.date) ? dayEditor(b.dataset.date) : openForm(horario, store.get('blocks', b.dataset.id));
       const ad = e.target.closest('[data-adjust]'); if (ad) return dayEditor(ad.dataset.adjust);
@@ -252,7 +252,7 @@ function home(el, api) {
     </div>`;
   api.renderList(el.querySelector('#ht'), { ...tareas, filter: (r) => !r.done && tasks.some((x) => x.id === r.id), render: null, emptyTitle: 'Todo al día', emptyText: 'No tienes tareas pendientes.' });
   el.querySelector('[data-a=newtask]').onclick = () => openForm(tareas);
-  el.querySelector('[data-a=reorg]').onclick = () => openHarvey('Reorganiza mi día de hoy desde ahora según mis tareas pendientes y prioridades. Mantén colegio y trabajo.');
+  el.querySelector('[data-a=reorg]').onclick = () => openHarvey('Reorganiza mi día de hoy desde ahora según mis tareas pendientes y prioridades. Mantén el colegio y los compromisos con clientes.');
   el.querySelector('[data-a=adjust]').onclick = () => dayEditor(fmt.today());
   el.querySelector('.hq').onclick = (e) => {
     const b = e.target.closest('[data-h]'); if (!b) return;

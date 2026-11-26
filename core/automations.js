@@ -14,6 +14,14 @@ function run() {
     }
     if (!inv.paid && tx.has(id) && !store.get('transactions', id)?._deleted) store.remove('transactions', id);
   }
+  // Registro diario → Finanzas: la plata cobrada del día entra como ingreso.
+  for (const r of store.list('registroDiario')) {
+    const id = 'reg-' + r.id;
+    const v = Number(r.cobrado) || 0;
+    const cur = store.get('transactions', id);
+    if (v > 0 && (!cur || Number(cur.amount) !== v || cur.date !== r.date)) store.add('transactions', { id, type: 'ingreso', amount: v, title: 'Cobrado (registro del ' + (r.date || '') + ')', category: 'Cliente', account: store.list('accounts').find((a) => a.kind === 'Negocio')?.id || '', date: r.date || fmt.today() });
+    if (!v && cur) store.remove('transactions', id);
+  }
   // Aprende → NEXO PLAN: cada evaluación llega como tarea tipo examen (con sus recordatorios).
   for (const ex of store.list('exams')) {
     if (!ex.date) continue;
@@ -27,5 +35,5 @@ function run() {
   }
 }
 let t = 0;
-store.subscribe('*', (col) => { if (['invoices', 'exams', 'shoots'].includes(col)) { clearTimeout(t); t = setTimeout(run, 150); } });
+store.subscribe('*', (col) => { if (['invoices', 'exams', 'shoots', 'registroDiario'].includes(col)) { clearTimeout(t); t = setTimeout(run, 150); } });
 setTimeout(run, 300);

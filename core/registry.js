@@ -19,15 +19,15 @@ export const LOGOS = {
 export const APPS = [
   { id: 'plan', name: 'NEXO Plan', tagline: 'tu tiempo', accent: '#00E5FF', path: PLAN_URL, external: true,
     cols: ['planBridge'], brain: 'Donna' },
-  { id: 'finanzas', name: 'NEXO Finanzas', tagline: 'tu plata', accent: '#18C27A', path: 'apps/finanzas/',
+  { id: 'finanzas', name: 'NEXO Finanzas', tagline: 'tu plata', accent: '#1CE783', path: 'apps/finanzas/',
     cols: ['accounts', 'transactions', 'budgets', 'savings', 'subscriptions', 'alerts'], brain: 'Louis' },
   { id: 'negocios', name: 'NEXO Negocios', tagline: 'tu trabajo', accent: '#FF8A1F', path: 'apps/negocios/',
-    cols: ['sources', 'services', 'combos', 'clients', 'jobs', 'timeLogs', 'invoices', 'prospects'], brain: 'Harvey' },
+    cols: ['sources', 'services', 'combos', 'clients', 'jobs', 'timeLogs', 'invoices', 'prospects', 'registroDiario'], brain: 'Harvey' },
   { id: 'studio', name: 'NEXO Studio', tagline: 'tu contenido', accent: '#FF4F9A', path: 'apps/studio/',
     cols: ['ideas', 'scripts', 'shoots', 'videos', 'references', 'metrics', 'portfolio'], brain: 'Mike' },
   { id: 'aprende', name: 'NEXO Aprende', tagline: 'tu estudio', accent: '#FFC23D', path: 'apps/aprende/',
     cols: ['subjects', 'grades', 'exams', 'routes', 'english', 'flashcards', 'notes'], brain: 'Mike' },
-  { id: 'harvey', name: 'Harvey', tagline: 'tu asistente', accent: '#E9C46A', path: 'apps/harvey/',
+  { id: 'harvey', name: 'Harvey', tagline: 'tu asistente', accent: '#F5B83D', path: 'apps/harvey/',
     cols: ['chat', 'briefs'], brain: 'Jessica' },
 ];
 

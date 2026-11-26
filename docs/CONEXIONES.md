@@ -5,7 +5,7 @@ WhatsApp Business ─┐
 Instagram (pro) ───┼─► Meta webhooks ─► Cloudflare Tunnel ─► n8n (PC viejo o VPS)
 Gmail ─────────────┘                                            │
                                                                 ▼
-                                         Firebase: users/{uid}/inbox, metrics
+                                         Supabase: tabla registros (inbox, metrics)
                                                                 │
                                                                 ▼
                                     NEXO Negocios / Studio  +  Harvey (lee y propone)
@@ -20,7 +20,7 @@ Gmail ─────────────┘                                
 ## Pasos
 1. PC viejo con Ubuntu Server + Docker → `docker run -d --restart unless-stopped -p 5678:5678 -v n8n:/home/node/.n8n n8nio/n8n`.
 2. Cloudflare Tunnel con tu dominio (ej. `n8n.nexopc.co`) para que Meta pueda enviar avisos.
-3. En n8n: nodo **Webhook** (Meta) → nodo **Firebase/HTTP** que escribe en `users/{uid}/inbox`.
+3. En n8n: nodo **Webhook** (Meta) → nodo **Supabase** que escribe en `registros` (coleccion inbox).
 4. NEXO lee `inbox` igual que cualquier otra colección; Harvey ya la puede consultar si se agrega al esquema (`core/schema.js`).
 
 > WhatsApp personal NO se conecta: las herramientas no oficiales pueden hacer que Meta bloquee tu número.

@@ -1,6 +1,6 @@
 // Bloqueo con PIN y con Face ID / huella (passkey del dispositivo).
 // Nota honesta: esto protege la app en TU dispositivo (si alguien toma tu celular).
-// La seguridad real de los datos en la nube la da tu cuenta de Google + las reglas de Firebase.
+// La seguridad real de los datos en la nube la da tu cuenta de Google + las reglas RLS de Supabase.
 import { prefs } from './store.js';
 
 const SESSION_KEY = 'nexo:unlocked';

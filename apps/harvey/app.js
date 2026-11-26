@@ -1,9 +1,10 @@
 // Harvey · tu asistente — chat y voz, lectura de las 5 apps, resúmenes, alertas, cerebros y conexiones.
 import { boot, store, fmt, esc, prefs } from '../../core/shell.js';
+import { cloud } from '../../core/sync.js';
 import { APPS, LOGOS } from '../../core/registry.js';
 import { SCHEMA } from '../../core/schema.js';
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const initialQ = location.hash.startsWith('#q=') ? decodeURIComponent(location.hash.slice(3)) : '';
 if (initialQ) history.replaceState(null, '', '#home');
 const harvey = () => import('../../core/harvey.js');
@@ -45,8 +46,8 @@ const cerebros = { id: 'cerebros', title: 'Cerebros', icon: '🧠',
     const { BRAINS } = await harvey();
     const mode = prefs.get('brainMode', 'auto');
     el.innerHTML = `<p class="muted" style="margin:0 0 12px">Cada cerebro está inspirado en un personaje de Suits y sabe de un área. Toca uno para hablar solo con él.</p>
-      <div class="grid">${Object.entries(BRAINS).map(([k, b]) => `<button class="card brain ${mode === k ? 'sel' : ''}" data-b="${k}" style="--k:${b.color}"><span class="av">${b.emoji}</span><b>${b.name}</b><span class="muted" style="font-size:13px">${esc(b.area)}</span><i>${esc(b.voice)}</i></button>`).join('')}
-      <button class="card brain ${mode === 'consejo' ? 'sel' : ''}" data-b="consejo" style="--k:#9B5CFF"><span class="av">🏛</span><b>El consejo</b><span class="muted" style="font-size:13px">Todos opinan en una línea y Donna resume la acción.</span></button>
+      <div class="grid">${Object.entries(BRAINS).map(([k, b]) => `<button class="card brain ${mode === k ? 'sel' : ''}" data-b="${k}" style="--k:${b.color}"><span class="av">${b.emoji}</span><b>${b.name}</b><span class="chip" style="color:${b.color}">${esc(b.role)}</span><span class="muted" style="font-size:13px">${esc(b.area)}</span><i>${esc(b.voice)}</i><span style="font-size:12.5px">✅ ${esc(b.puede)}</span></button>`).join('')}
+      <button class="card brain ${mode === 'consejo' ? 'sel' : ''}" data-b="consejo" style="--k:#A77BFF"><span class="av">🏛</span><b>Bufete completo</b><span class="muted" style="font-size:13px">Harvey, Donna, Louis y Mike opinan en una línea cada uno y Jessica decide la acción.</span></button>
       <button class="card brain ${mode === 'auto' ? 'sel' : ''}" data-b="auto" style="--k:#8E99AD"><span class="av">✨</span><b>Automático</b><span class="muted" style="font-size:13px">Harvey elige quién responde según el tema.</span></button></div>`;
     el.onclick = (e) => { const b = e.target.closest('[data-b]'); if (b) { prefs.set('brainMode', b.dataset.b); mounted = null; document.querySelector('[data-nav=home]').click(); } };
   } };
@@ -85,10 +86,10 @@ const alertas = { id: 'alertas', title: 'Alertas', icon: '🔔',
 
 const conexiones = { id: 'conexiones', title: 'Conexiones', icon: '🔌',
   render(el) {
-    const ok = !!prefs.get('anthropicKey');
     const items = [
-      ['🧠', 'Claude (cerebro de Harvey)', ok ? 'Conectado' : 'Falta tu clave', ok ? 's-create' : 's-pending', 'Ajustes en el chat → ⚙︎ Ajustes de Harvey.'],
-      ['☁️', 'Cuenta de Google (respaldo)', 'Ver ⚙︎ Ajustes', 's-edit', 'Requiere configurar Firebase una sola vez (docs/INSTALAR.md).'],
+      ['🧠', 'Claude (cerebro de Harvey)', 'En el servidor', 's-edit', 'La clave vive en Supabase como secreto. Si falta, Harvey te lo avisa al escribirle. Tope: US$0,50 al día.'],
+      ['☁️', 'Supabase + cuenta de Google', cloud.user() ? 'Conectado' : 'Entra con Google', cloud.user() ? 's-create' : 's-pending', 'Tus datos sincronizados en Android, iPhone y PC, en tiempo real.'],
+      ['🤖', 'Claude en el chat (claude.ai)', 'Conector de Supabase', 's-create', 'Desde cualquier chat de Claude puedes pedir: “lee mis finanzas” o “¿cómo voy con los clientes?”.'],
       ['📧', 'Gmail', 'Fase 2', 's-pending', 'Harvey leerá correos de clientes y te hará resumen. Se conecta con n8n o con el permiso de Gmail de tu cuenta Google.'],
       ['💬', 'WhatsApp Business', 'Fase 2 · n8n', 's-pending', 'API oficial de Meta con un número de negocio. Mensajes nuevos → NEXO Negocios; Harvey propone respuesta y tú confirmas.'],
       ['📸', 'Instagram profesional', 'Fase 2 · n8n', 's-pending', 'Estadísticas, DMs y comentarios. Las métricas llegan solas a NEXO Studio.'],

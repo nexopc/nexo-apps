@@ -1,7 +1,9 @@
 // NEXO Negocios · tu trabajo
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
+import { estado, P10_CSS, SEMA } from '../../core/plan10m.js';
+{ const st = document.createElement('style'); st.textContent = P10_CSS; document.head.appendChild(st); }
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const STATUS = [['cotizado', 'Cotizado', 's-edit'], ['aprobado', 'Aprobado', 's-pending'], ['en curso', 'En curso', 's-pending'], ['entregado', 'Entregado', 's-create'], ['pagado', 'Pagado', 's-create']];
 const STAGES = [['nuevo', 'Nuevo'], ['contactado', 'Contactado'], ['reunión', 'Reunión'], ['propuesta', 'Propuesta'], ['ganado', 'Ganado'], ['perdido', 'Perdido']];
 const name = (col, id) => store.get(col, id)?.name || store.get(col, id)?.title || '';
@@ -19,7 +21,7 @@ const fuentes = fromSchema('sources', { id: 'fuentes', title: 'Fuentes', icon: '
   titleOf: (r) => r.name, subOf: (r) => `${store.list('services').filter((s) => s.source === r.id).length} servicios`,
   sideOf: (r) => `<span class="up num">${fmt.money(paidOf((i) => store.get('jobs', i.job)?.source === r.id))}</span>` });
 const servicios = fromSchema('services', { id: 'servicios', title: 'Servicios', icon: '🧾', single: 'servicio',
-  titleOf: (r) => r.name, subOf: (r) => [name('sources', r.source), r.hours ? r.hours + ' h' : ''].filter(Boolean).map(esc).join(' · '),
+  titleOf: (r) => r.name + (r.plan ? ' · ' + r.plan : ''), subOf: (r) => [name('sources', r.source), r.hours ? r.hours + ' h' : ''].filter(Boolean).map(esc).join(' · '),
   sideOf: (r) => `${fmt.money(r.price)}${r.hours ? `<div class="muted" style="font-size:11px">${fmt.money(r.price / r.hours)}/h</div>` : ''}` });
 const combos = fromSchema('combos', { id: 'combos', title: 'Combos', icon: '🎁', single: 'combo', titleOf: (r) => r.name, subOf: (r) => esc(r.items || ''), sideOf: (r) => fmt.money(r.price) });
 
@@ -66,45 +68,146 @@ const trabajos = fromSchema('jobs', { id: 'trabajos', title: 'Trabajos', icon: '
     };
   } });
 
-// ---------- Cotizador en vivo ----------
-let quote = {};
+// ---------- Cotizador en vivo (planes, extras, precio fundador, combos) ----------
+const cfg10 = () => store.get('config', 'plan10m') || {};
+let Q = { tab: 'servicios', marca: '', svc: '', plan: '', extras: {}, opc: {}, fundador: false, client: '' };
+function todayReg() { return store.list('registroDiario').find((r) => r.date === fmt.today()); }
+function bumpReg(k, n = 1) {
+  const r = todayReg();
+  if (r) store.update('registroDiario', r.id, { [k]: Math.max(0, (Number(r[k]) || 0) + n) });
+  else store.add('registroDiario', { date: fmt.today(), [k]: Math.max(0, n) });
+}
+const fundadorUsados = () => store.list('jobs').filter((j) => j.fundador).length;
+function calc(svc) {
+  if (!svc) return null;
+  const extras = (svc.extras || []).reduce((a, x) => a + (Q.extras[x.name] || 0) * x.price, 0);
+  const pct = (svc.opciones || []).reduce((a, o) => a + (Q.opc[o.name] ? o.pct : 0), 0);
+  let total = Math.round((svc.price + extras) * (1 + pct / 100));
+  const desc = Q.fundador ? Math.round(total * ((cfg10().fundador?.pct || 10) / 100)) : 0;
+  total -= desc;
+  const anticipo = Math.round(total * ((Number(svc.anticipo) || 0) / 100));
+  return { base: svc.price, extras, pct, desc, total, anticipo, saldo: total - anticipo, monthly: Number(svc.monthly) || 0 };
+}
+function waText(svc, c, client) {
+  const ex = (svc.extras || []).filter((x) => Q.extras[x.name]).map((x) => `• ${Q.extras[x.name]} × ${x.name}: ${fmt.money(x.price * Q.extras[x.name])}`);
+  const op = (svc.opciones || []).filter((o) => Q.opc[o.name]).map((o) => `• ${o.name} (${o.pct > 0 ? '+' : ''}${o.pct} %)`);
+  return [`Hola${client ? ' ' + client.name : ''} 👋 Te comparto la cotización:`, '',
+    `*${svc.name} · Plan ${svc.plan}*${svc.mensual ? ' (mensual)' : ''}`, `Incluye: ${svc.desc || ''}`, `Precio: ${fmt.money(svc.price)}`,
+    ...ex, ...op, c.desc ? `• Precio fundador: −${fmt.money(c.desc)}` : '', '',
+    `*Total: ${fmt.money(c.total)}*${svc.mensual ? ' al mes' : ''}`,
+    c.anticipo ? `Anticipo (${svc.anticipo} %): ${fmt.money(c.anticipo)} · Saldo al entregar: ${fmt.money(c.saldo)}` : 'Pagas al entregar.',
+    c.monthly ? `Mensualidad después: ${fmt.money(c.monthly)}` : '', svc.noIncluye ? `No incluye: ${svc.noIncluye}` : '', '', '— Cristóbal'].filter((l) => l !== '').join('\n');
+}
 const cotizador = { id: 'cotizador', title: 'Cotizador', icon: '🧮',
   render(el) {
-    const svcs = store.list('services'); const cbs = store.list('combos');
-    const items = [...cbs.map((c) => ({ id: 'c:' + c.id, name: '🎁 ' + c.name, price: +c.price || 0 })), ...svcs.map((s) => ({ id: 's:' + s.id, name: s.name, price: +s.price || 0, hours: +s.hours || 0 }))];
-    if (!items.length) { el.innerHTML = '<div class="empty"><b>Primero crea tus servicios</b>Ve a 🧾 Servicios y agrega lo que vendes con su precio. Aquí los combinas y cotizas en segundos.</div>'; return; }
-    const calc = () => {
-      const sub = items.reduce((a, it) => a + (quote[it.id] || 0) * it.price, 0);
-      const disc = Number(el.querySelector('#disc')?.value || 0);
-      const total = Math.round(sub * (1 - disc / 100));
-      const hrs = items.reduce((a, it) => a + (quote[it.id] || 0) * (it.hours || 0), 0);
-      el.querySelector('#sub').textContent = fmt.money(sub);
-      el.querySelector('#tot').textContent = fmt.money(total);
-      el.querySelector('#hrs').textContent = hrs ? `${hrs} h estimadas · ${fmt.money(total / hrs)}/h` : '';
-      return { sub, disc, total };
-    };
-    el.innerHTML = `<div class="quote"><div class="list">${items.map((it) => `<div class="list-item q-it" style="cursor:default"><div class="li-main"><div class="li-title">${esc(it.name)}</div><div class="li-sub num">${fmt.money(it.price)}</div></div>
-        <div class="stepper"><button data-d="-1" data-i="${it.id}" aria-label="Quitar">−</button><span class="num" id="q-${it.id.replace(':', '_')}">${quote[it.id] || 0}</span><button data-d="1" data-i="${it.id}" aria-label="Agregar">＋</button></div></div>`).join('')}</div>
-      <aside class="card qsum"><div class="row" style="justify-content:space-between"><span class="muted">Subtotal</span><b class="num" id="sub"></b></div>
-        <div class="field"><label for="disc">Descuento %</label><input id="disc" type="number" min="0" max="100" value="0"></div>
-        <div class="field"><label for="qc">Cliente</label><select id="qc"><option value="">—</option>${store.list('clients').map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
-        <div class="tot num" id="tot"></div><div class="muted num" id="hrs" style="font-size:13px"></div>
-        <div class="row"><button class="btn btn-create" data-a="save">＋ Guardar como trabajo</button><button class="btn btn-edit ghost" data-a="copy">📋 Copiar para WhatsApp</button><button class="btn btn-cancel ghost sm" data-a="reset">Limpiar</button></div></aside></div>`;
-    calc();
-    el.oninput = calc;
-    el.onclick = (e) => {
-      const b = e.target.closest('[data-d]');
-      if (b) { quote[b.dataset.i] = Math.max(0, (quote[b.dataset.i] || 0) + Number(b.dataset.d)); el.querySelector('#q-' + b.dataset.i.replace(':', '_')).textContent = quote[b.dataset.i]; calc(); navigator.vibrate?.(8); return; }
-      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
-      const { total, disc } = calc();
-      const lines = items.filter((it) => quote[it.id]).map((it) => `• ${quote[it.id]} × ${it.name.replace('🎁 ', '')} — ${fmt.money(it.price * quote[it.id])}`);
-      if (a === 'reset') { quote = {}; this.render(el); return; }
-      if (!lines.length) return toast('Agrega al menos un servicio');
-      const client = store.get('clients', el.querySelector('#qc').value);
-      if (a === 'copy') copy(`Hola${client ? ' ' + client.name : ''} 👋 Esta es tu cotización:\n${lines.join('\n')}${disc ? `\nDescuento: ${disc}%` : ''}\n*Total: ${fmt.money(total)}*\n\nQuedo atento. — Cristóbal`);
-      if (a === 'save') { store.add('jobs', { title: lines.map((l) => l.split(' — ')[0].replace('• ', '')).join(', ').slice(0, 80), client: client?.id || '', price: total, status: 'cotizado' }); quote = {}; toast('Trabajo cotizado creado'); }
-    };
+    const sources = store.list('sources');
+    const svcs = store.list('services');
+    if (!svcs.length) { el.innerHTML = '<div class="empty"><b>Sin servicios todavía</b>Entra con Google: tus servicios y combos del Plan $10M se cargan solos. También puedes crearlos en 🧾 Servicios.</div>'; return; }
+    const tabs = `<div class="tabs"><button data-tab="servicios" aria-pressed="${Q.tab === 'servicios'}">🧾 Servicios</button><button data-tab="combos" aria-pressed="${Q.tab === 'combos'}">🎁 Combos</button></div>`;
+    if (Q.tab === 'combos') { el.innerHTML = tabs + combosView(); return bind(el); }
+    const marcas = sources.filter((s) => svcs.some((v) => v.source === s.id));
+    if (!Q.marca || !marcas.some((m) => m.id === Q.marca)) Q.marca = marcas[0]?.id || '';
+    const names = [...new Set(svcs.filter((v) => !Q.marca || v.source === Q.marca).map((v) => v.name))];
+    if (!names.includes(Q.svc)) { Q.svc = names[0] || ''; Q.plan = ''; Q.extras = {}; Q.opc = {}; }
+    const plans = svcs.filter((v) => v.name === Q.svc && (!Q.marca || v.source === Q.marca)).sort((a, b) => a.price - b.price);
+    if (!plans.some((p) => p.id === Q.plan)) Q.plan = (plans.find((p) => p.plan === 'Premium') || plans[plans.length - 1] || {}).id;
+    const svc = plans.find((p) => p.id === Q.plan);
+    const cheap = plans[0];
+    const minH = cfg10().minimoHora || 35000;
+    const c = calc(svc);
+    const cup = (cfg10().fundador?.cupos || 3) - fundadorUsados();
+    el.innerHTML = tabs + `
+      <div class="chips-row">${marcas.map((m) => `<button class="pill ${m.id === Q.marca ? 'on' : ''}" data-marca="${m.id}" style="--pc:${esc(m.color || 'var(--accent)')}">${esc(m.name)}</button>`).join('')}</div>
+      <div class="chips-row">${names.map((n) => `<button class="pill sm ${n === Q.svc ? 'on' : ''}" data-svc="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+      <div class="plans">${plans.map((p) => {
+        const rinde = cheap && p !== cheap && cheap.hours && p.hours ? Math.round(((p.hours / p.price) / (cheap.hours / cheap.price) - 1) * 100) : 0;
+        const ph = p.hours ? Math.round(p.price / p.hours) : 0;
+        return `<button class="plan ${p.id === Q.plan ? 'on' : ''} ${p.plan === 'Premium' ? 'rec' : ''}" data-plan="${p.id}">
+          ${p.plan === 'Premium' ? '<span class="rec-tag">★ Recomendado</span>' : ''}
+          <b>${esc(p.plan || 'Único')}</b><span class="pp num">${fmt.money(p.price)}${p.mensual ? '<small>/mes</small>' : ''}</span>
+          ${p.monthly ? `<span class="muted num" style="font-size:12px">+ ${fmt.money(p.monthly)}/mes</span>` : ''}
+          ${rinde > 0 ? `<span class="rinde">Tu plata rinde ${rinde} % más</span>` : ''}
+          <span class="num ${ph && ph < minH ? 'down' : 'muted'}" style="font-size:12px">${p.hours || '?'} h · ${ph ? fmt.money(ph) + '/h' : ''}</span></button>`;
+      }).join('')}</div>
+      ${svc ? `<div class="quote">
+        <div class="card"><h3>Qué incluye</h3><p style="margin:0">${esc(svc.desc || '')}</p>${svc.noIncluye ? `<p class="muted" style="margin:8px 0 0;font-size:13px">No incluye: ${esc(svc.noIncluye)}</p>` : ''}
+          ${(svc.extras || []).length ? `<h3 style="margin-top:14px">Extras</h3><div class="list">${svc.extras.map((x) => `<div class="list-item q-it" style="cursor:default"><div class="li-main"><div class="li-title">${esc(x.name)}</div><div class="li-sub num">${fmt.money(x.price)}</div></div><div class="stepper"><button data-ex="${esc(x.name)}" data-d="-1" aria-label="Quitar">−</button><span class="num">${Q.extras[x.name] || 0}</span><button data-ex="${esc(x.name)}" data-d="1" aria-label="Agregar">＋</button></div></div>`).join('')}</div>` : ''}
+          ${(svc.opciones || []).length ? `<h3 style="margin-top:14px">Opciones</h3><div class="row">${svc.opciones.map((o) => `<button class="pill sm ${Q.opc[o.name] ? 'on' : ''}" data-opc="${esc(o.name)}">${esc(o.name)} ${o.pct > 0 ? '+' : ''}${o.pct} %</button>`).join('')}</div>` : ''}</div>
+        <aside class="card qsum">
+          <label class="row" style="gap:10px"><input type="checkbox" id="qf" ${Q.fundador ? 'checked' : ''} ${cup <= 0 && !Q.fundador ? 'disabled' : ''} style="width:22px;height:22px"> Precio fundador −${cfg10().fundador?.pct || 10} % <span class="chip ${cup > 0 ? 's-create' : 's-delete'}">${Math.max(0, cup)} cupos</span></label>
+          <div class="field"><label for="qc">Cliente</label><select id="qc"><option value="">—</option>${store.list('clients').map((cl) => `<option value="${cl.id}" ${cl.id === Q.client ? 'selected' : ''}>${esc(cl.name)}</option>`).join('')}</select></div>
+          <div class="sumrow"><span>Precio</span><b class="num">${fmt.money(c.base)}</b></div>
+          ${c.extras ? `<div class="sumrow"><span>Extras</span><b class="num">${fmt.money(c.extras)}</b></div>` : ''}
+          ${c.pct ? `<div class="sumrow"><span>Opciones</span><b class="num">${c.pct > 0 ? '+' : ''}${c.pct} %</b></div>` : ''}
+          ${c.desc ? `<div class="sumrow"><span>Fundador</span><b class="num up">−${fmt.money(c.desc)}</b></div>` : ''}
+          <div class="tot num">${fmt.money(c.total)}${svc.mensual ? '<small>/mes</small>' : ''}</div>
+          <div class="sumrow"><span>Anticipo (${esc(svc.anticipoTxt || (svc.anticipo || 0) + ' %')})</span><b class="num">${fmt.money(c.anticipo)}</b></div>
+          <div class="sumrow"><span>Saldo</span><b class="num">${fmt.money(c.saldo)}</b></div>
+          ${c.monthly ? `<div class="sumrow"><span>Mensualidad</span><b class="num">${fmt.money(c.monthly)}</b></div>` : ''}
+          <div class="row"><button class="btn btn-edit" data-a="wa">📋 Copiar para WhatsApp</button><button class="btn btn-create" data-a="save">＋ Guardar como trabajo</button></div>
+        </aside></div>` : ''}`;
+    bind(el);
   } };
+function combosView() {
+  const cfg = cfg10(); const today = fmt.today();
+  const sem = (cfg.combosSemana || []).find((c) => today >= c.desde && today <= c.hasta);
+  const inSem = (n) => sem && (sem.nexopc === n || sem.agencia === n);
+  const cupos = (n) => 3 - store.list('jobs').filter((j) => j.combo === n && j.createdAt >= (sem?.desde || '')).length;
+  return `${sem ? `<div class="card" style="border-color:var(--accent)"><b>🔥 Combos de la semana</b> <span class="muted">(${fmt.date(sem.desde)} – ${fmt.date(sem.hasta)})</span><div class="muted">${esc(sem.nexopc)} · ${esc(sem.agencia)} — 3 cupos cada uno</div></div>` : ''}
+    <div class="grid section">${store.list('combos').map((cb) => { const ah = cb.separate ? Math.round((1 - cb.price / cb.separate) * 100) : 0; const src = store.get('sources', cb.source);
+      return `<div class="card combo ${inSem(cb.name) ? 'hot' : ''}"><div class="row" style="justify-content:space-between"><span class="chip" style="color:${esc(src?.color || 'var(--accent)')}">${esc(src?.name || '')}</span>${inSem(cb.name) ? `<span class="chip s-pending">${Math.max(0, cupos(cb.name))} cupos</span>` : ''}</div>
+        <b style="font:700 17px var(--display)">${esc(cb.name)}</b><span class="muted" style="font-size:13px">${esc(cb.para || '')} · ${esc(cb.items || '')}</span>
+        <div class="row" style="align-items:baseline">${cb.separate ? `<s class="muted num">${fmt.money(cb.separate)}</s>` : ''}<b class="num" style="font-size:22px">${fmt.money(cb.price)}</b>${ah ? `<span class="chip s-create">−${ah} %</span>` : ''}</div>
+        <div class="row"><button class="btn btn-edit ghost sm" data-cwa="${cb.id}">📋 WhatsApp</button><button class="btn btn-create ghost sm" data-csave="${cb.id}">＋ Trabajo</button></div></div>`; }).join('') || '<div class="empty"><b>Sin combos</b>Créalos en 🎁 Combos.</div>'}</div>`;
+}
+async function copyTxt(t) { try { await navigator.clipboard.writeText(t); toast('Copiado: pégalo en WhatsApp'); } catch { toast('No se pudo copiar'); } }
+function bind(el) {
+  el.onclick = (e) => {
+    const g = (sel) => e.target.closest(sel);
+    if (g('[data-tab]')) { Q.tab = g('[data-tab]').dataset.tab; return cotizador.render(el); }
+    if (g('[data-marca]')) { Q.marca = g('[data-marca]').dataset.marca; Q.svc = ''; return cotizador.render(el); }
+    if (g('[data-svc]')) { Q.svc = g('[data-svc]').dataset.svc; Q.plan = ''; Q.extras = {}; Q.opc = {}; return cotizador.render(el); }
+    if (g('[data-plan]')) { Q.plan = g('[data-plan]').dataset.plan; return cotizador.render(el); }
+    if (g('[data-ex]')) { const b = g('[data-ex]'); Q.extras[b.dataset.ex] = Math.max(0, (Q.extras[b.dataset.ex] || 0) + Number(b.dataset.d)); navigator.vibrate?.(8); return cotizador.render(el); }
+    if (g('[data-opc]')) { const n = g('[data-opc]').dataset.opc; Q.opc[n] = !Q.opc[n]; return cotizador.render(el); }
+    const svc = store.get('services', Q.plan); const client = store.get('clients', Q.client);
+    if (g('[data-a=wa]') && svc) { copyTxt(waText(svc, calc(svc), client)); bumpReg('cotizaciones'); return; }
+    if (g('[data-a=save]') && svc) {
+      const c = calc(svc);
+      store.add('jobs', { title: `${svc.name} · ${svc.plan}`, client: Q.client, source: svc.source, price: c.total, status: 'cotizado', fundador: Q.fundador, anticipo: c.anticipo });
+      bumpReg('cotizaciones'); toast('Trabajo cotizado creado · +1 cotización hoy'); Q.fundador = false; return;
+    }
+    const cw = g('[data-cwa]'); if (cw) { const cb = store.get('combos', cw.dataset.cwa); copyTxt(`Hola 👋 Te comparto el *${cb.name}*:\n${cb.items}\n${cb.separate ? 'Por separado: ' + fmt.money(cb.separate) + '\n' : ''}*Precio combo: ${fmt.money(cb.price)}*\n\n— Cristóbal`); bumpReg('cotizaciones'); return; }
+    const cs = g('[data-csave]'); if (cs) { const cb = store.get('combos', cs.dataset.csave); store.add('jobs', { title: cb.name, source: cb.source, price: cb.price, status: 'cotizado', combo: cb.name }); bumpReg('cotizaciones'); toast('Trabajo cotizado creado'); }
+  };
+  el.onchange = (e) => {
+    if (e.target.id === 'qf') { Q.fundador = e.target.checked; cotizador.render(el); }
+    if (e.target.id === 'qc') Q.client = e.target.value;
+  };
+}
+
+// ---------- Registro diario (números del día) ----------
+const NUMS = [['contactos', 'Contactos nuevos', '📞'], ['seguimientos', 'Seguimientos', '🔁'], ['cotizaciones', 'Cotizaciones', '🧮'], ['videos', 'Videos publicados', '🎬'], ['horasProd', 'Horas de producción', '⏱'], ['ventas', 'Ventas', '✅']];
+const registro = fromSchema('registroDiario', { id: 'registro', title: 'Registro diario', icon: '📒', single: 'registro del día',
+  preset: () => ({ date: fmt.today() }),
+  render(el) {
+    const meta = cfg10().numeros || { contactos: 8, seguimientos: 5, cotizaciones: 2, videos: 1, horasProd: 4 };
+    const r = todayReg() || {};
+    const hist = store.list('registroDiario').filter((x) => x.date !== fmt.today()).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 14);
+    el.innerHTML = `<p class="muted" style="margin:0 0 10px">Se llena cada noche (8:00 p. m.). Toca ＋ a medida que avanzas en el día.</p>
+      <div class="nums">${NUMS.map(([k, l, i]) => { const v = Number(r[k]) || 0; const m = meta[k]; const ok = m ? v >= m : v > 0;
+        return `<div class="num-card ${ok ? 'ok' : ''}"><span class="ic">${i}</span><div class="li-main"><b>${l}</b><span class="muted num">${m ? 'meta ' + m : 'meta 1 cada 1,3 días'}</span></div>
+          <div class="stepper"><button data-k="${k}" data-d="${k === 'horasProd' ? -0.5 : -1}" aria-label="Menos">−</button><span class="num">${v}</span><button data-k="${k}" data-d="${k === 'horasProd' ? 0.5 : 1}" aria-label="Más">＋</button></div></div>`; }).join('')}</div>
+      <div class="row section"><button class="btn btn-create" data-a="cobro">💵 Plata cobrada hoy: ${fmt.money(r.cobrado || 0)}</button><button class="btn btn-edit ghost" data-a="notas">✍️ Qué funcionó y lo #1 de mañana</button></div>
+      <div class="section"><h2>Días anteriores</h2><div class="list">${hist.map((x) => { const hit = NUMS.filter(([k]) => meta[k] && (Number(x[k]) || 0) >= meta[k]).length; const tot = NUMS.filter(([k]) => meta[k]).length;
+        return `<div class="list-item" data-id="${x.id}"><span class="chip ${hit === tot ? 's-create' : hit >= tot / 2 ? 's-pending' : 's-delete'}">${hit}/${tot}</span><div class="li-main"><div class="li-title">${fmt.date(x.date)}</div><div class="li-sub">${x.contactos || 0} contactos · ${x.cotizaciones || 0} cotizaciones · ${x.ventas || 0} ventas${x.top1 ? ' · #1: ' + esc(x.top1) : ''}</div></div><div class="li-side up">${x.cobrado ? fmt.money(x.cobrado) : ''}</div></div>`; }).join('') || '<p class="muted">Todavía no hay días anteriores.</p>'}</div></div>`;
+    el.onclick = (e) => {
+      const b = e.target.closest('[data-k]'); if (b) { bumpReg(b.dataset.k, Number(b.dataset.d)); navigator.vibrate?.(8); return; }
+      const a = e.target.closest('[data-a]')?.dataset.a;
+      if (a === 'cobro' || a === 'notas') { const cur = todayReg() || store.add('registroDiario', { date: fmt.today() }); return openForm(registro, store.get('registroDiario', cur.id)); }
+      const it = e.target.closest('.list-item'); if (it) openForm(registro, store.get('registroDiario', it.dataset.id));
+    };
+  } });
 
 // ---------- Cronómetro y valor real de tu hora ----------
 let run = JSON.parse(localStorage.getItem('nexo:neg:timer') || 'null');
@@ -174,7 +277,12 @@ function home(el) {
   const follow = store.list('prospects').filter((p) => p.nextDate && p.nextDate <= fmt.today() && !['ganado', 'perdido'].includes(p.stage));
   const bySource = store.list('sources').map((s) => ({ s, v: paidOf((i) => store.get('jobs', i.job)?.source === s.id && (i.date || '').startsWith(m)) }));
   const maxS = Math.max(1, ...bySource.map((x) => x.v));
+  const e10 = estado(); const reg = store.list('registroDiario').find((r) => r.date === fmt.today()) || {}; const nm = (store.get('config', 'plan10m') || {}).numeros || {};
   el.innerHTML = `<div class="page-title"><h1>Tus números</h1><button class="btn btn-create sm" data-go="cotizador">🧮 Cotizar</button></div>
+    ${e10 ? `<div class="card p10" style="margin-bottom:12px"><div class="sema" style="--sc:${SEMA[e10.color]}"><span class="luz"></span><div><b>${fmt.money(e10.acc)}</b> de ${fmt.money(e10.p.meta)} · ${esc(e10.msg)}</div></div>
+      <div class="row" style="gap:14px;font-size:14px">${[['contactos', '📞'], ['seguimientos', '🔁'], ['cotizaciones', '🧮'], ['videos', '🎬']].map(([k, i]) => `<span class="num ${(Number(reg[k]) || 0) >= (nm[k] || 1) ? 'up' : ''}">${i} ${reg[k] || 0}/${nm[k] || '-'}</span>`).join('')}
+      <button class="btn btn-edit ghost sm" data-go="registro">📒 Registro de hoy</button></div>
+      ${e10.combo ? `<div class="muted" style="font-size:13px">🔥 Combos de la semana: <b style="color:var(--fg)">${esc(e10.combo.nexopc)}</b> y <b style="color:var(--fg)">${esc(e10.combo.agencia)}</b></div>` : ''}</div>` : ''}
     <div class="grid k"><div class="card kpi"><div class="v num up">${fmt.money(cobrado)}</div><div class="l">cobrado este mes</div></div>
       <div class="card kpi"><div class="v num">${fmt.money(porCobrar)}</div><div class="l">por cobrar</div></div>
       <div class="card kpi"><div class="v num">${activos.length}</div><div class="l">trabajos activos</div></div>
@@ -187,4 +295,10 @@ function home(el) {
   el.onclick = (e) => { const g = e.target.closest('[data-go]'); if (g) document.querySelector(`[data-nav="${g.dataset.go}"]`)?.click(); };
 }
 
-boot({ appId: 'negocios', version: VERSION, home, modules: [trabajos, cotizador, clientes, cobros, prospectos, cronometro, servicios, combos, fuentes] });
+const QUICK = [
+  { label: 'Cotizar', icon: '🧮', color: '#E5175F', run: (api) => api.go('cotizador') },
+  { label: 'Cobrar', icon: '💵', color: '#FF7A00', run: (api) => api.go('cobros') },
+  { label: 'Nuevo cliente', icon: '🤝', color: '#A06CFF', run: () => openForm(clientes) },
+  { label: 'Registro', icon: '📒', color: '#00C2B2', run: (api) => api.go('registro') },
+];
+boot({ appId: 'negocios', version: VERSION, home, quick: QUICK, modules: [cotizador, registro, trabajos, clientes, cobros, prospectos, cronometro, servicios, combos, fuentes] });

@@ -7,17 +7,40 @@ import { SCHEMA, schemaForAI } from './schema.js';
 import { APPS } from './registry.js';
 
 export const BRAINS = {
-  harvey:  { name: 'Harvey',  emoji: '⚖️', color: '#E9C46A', area: 'estrategia, negociación, cerrar clientes, confianza, precios',
-             voice: 'Seguro, directo, frases cortas. Te reta a jugar en grande, pero con jugadas concretas.' },
-  mike:    { name: 'Mike',    emoji: '📚', color: '#4EA8FF', area: 'aprendizaje, estudio, Saber 11, Filmora, código, memoria, investigación rápida',
-             voice: 'Curioso y rápido. Explica simple, con trucos para memorizar y pasos claros.' },
-  louis:   { name: 'Louis',   emoji: '📊', color: '#18C27A', area: 'dinero, gastos, cobros, presupuesto, detalles, disciplina con los números',
-             voice: 'Obsesivo con el detalle y los números exactos. Te regaña con cariño si gastas de más.' },
-  donna:   { name: 'Donna',   emoji: '💜', color: '#C77DFF', area: 'agenda, hábitos, personas, clientes, intuición, bienestar, organización del día',
-             voice: 'Cálida, intuitiva, sabe lo que necesitas antes de que lo pidas. Te organiza el día.' },
-  jessica: { name: 'Jessica', emoji: '👑', color: '#FF8A65', area: 'visión a 4 años, liderazgo, decisiones grandes, NEXO PC como empresa',
-             voice: 'Visión de largo plazo, calmada y firme. Piensa como dueña de empresa.' },
+  harvey:  { name: 'Harvey',  emoji: '⚖️', color: '#F5B83D', role: 'El jefe. Estrategia y clientes',
+             area: 'prioridades, estrategia de negocio, precios, negociación, conseguir y cerrar clientes, propuestas, posicionar NEXO PC',
+             voice: 'Seguro, directo, frases cortas. No acepta excusas ni que juegues a no perder. Siempre da la jugada concreta: a quién llamar, qué ofrecer y a qué precio.',
+             puede: 'Cotizar con los servicios y combos, redactar mensajes para prospectos, decidir qué cliente atender primero.' },
+  donna:   { name: 'Donna',   emoji: '💜', color: '#FF5DA2', role: 'Tu agenda y tu gente',
+             area: 'agenda, citas, mover bloques del horario, recordatorios, clientes y personas, hábitos, descanso',
+             voice: 'Lo sabe todo antes de que lo digas. Cálida pero firme, práctica: ya tiene el día resuelto y te lo dice sin rodeos.',
+             puede: 'Reorganizar el día (reorganizar_dia), crear citas, tareas y recordatorios en NEXO PLAN (tarea_plan), recordarte a quién le debes una respuesta.' },
+  louis:   { name: 'Louis',   emoji: '📊', color: '#1CE783', role: 'Tu contabilidad',
+             area: 'gastos e ingresos, presupuesto, cobros y cuentas de cobro, flujo de caja, ahorro para NEXO PC, meta de ventas, RUT, DIAN y régimen simple',
+             voice: 'Obsesivo con cada peso, dramático cuando algo no cuadra y orgulloso cuando hay disciplina. Siempre con números exactos.',
+             puede: 'Registrar gastos e ingresos, revisar presupuesto y cobros pendientes, decir cuánto falta para la meta y cuánto se puede gastar.' },
+  mike:    { name: 'Mike',    emoji: '📚', color: '#3D8BFF', role: 'Astuto y analítico',
+             area: 'análisis y patrones en tus números, atajos y trucos, aprender rápido, Saber 11, Filmora, código, ideas y guiones',
+             voice: 'Rápido, ingenioso, memoria de elefante. Encuentra el patrón o el atajo que nadie vio y lo explica simple.',
+             puede: 'Analizar qué te funciona (horas, ventas, videos), armar planes de estudio, tarjetas de repaso, ideas y guiones de video.' },
+  jessica: { name: 'Jessica', emoji: '👑', color: '#A77BFF', role: 'Visión y decisiones grandes',
+             area: 'plan a 4 años, prioridades entre proyectos, cuándo decir que no, liderazgo, NEXO PC como empresa, revisión semanal y mensual',
+             voice: 'Calmada y firme. Ve el tablero completo y piensa como dueña de empresa. Pocas palabras, todas pesan.',
+             puede: 'Revisión semanal, decidir qué proyecto va primero, cerrar el consejo con la decisión.' },
 };
+
+// Perfil privado del dueño: vive en Supabase (tabla perfil), nunca en el código público.
+let PERFIL = prefs.get('perfilResumen', '');
+async function loadPerfil() {
+  try {
+    const { cloud } = await import('./sync.js');
+    const sb = cloud.user() ? await cloud.client() : null;
+    if (!sb) return PERFIL;
+    const { data } = await sb.from('perfil').select('nombre,ciudad,datos').maybeSingle();
+    if (data) { PERFIL = [data.nombre && 'Nombre: ' + data.nombre, data.ciudad && 'Ciudad: ' + data.ciudad, data.datos?.resumen].filter(Boolean).join('\n'); prefs.set('perfilResumen', PERFIL); }
+  } catch {}
+  return PERFIL;
+}
 
 const MODEL_DEFAULT = 'auto';
 export const MODELS = [
@@ -74,16 +97,17 @@ export function snapshot() {
 }
 
 function systemPrompt() {
-  return `Eres el asistente personal de Cristóbal (18 años, Quibdó, Colombia): estudia en el colegio (renunció a la tienda de computadores en nov 2026; sus bloques de trabajo ahora son libres) y está construyendo su tienda de tecnología NEXO PC (hardware y gaming), una agencia de marketing digital, edición de video y una app de catálogo de tiendas locales. Plazo: 4 años. Quiere estudiar Ingeniería en Nanotecnología.
+  return `Eres Harvey, el asistente personal del dueño de la red de apps NEXO. Lo conoces por su perfil:
+${PERFIL || '(Perfil todavía vacío: pregúntale lo básico cuando haga falta.)'}
 
-Tienes 5 cerebros, inspirados en los personajes de la serie Suits (no eres los personajes reales; hablas con su estilo y su área):
-${Object.values(BRAINS).map((b) => `- ${b.emoji} ${b.name}: ${b.area}. Estilo: ${b.voice}`).join('\n')}
+Tienes 5 cerebros, inspirados en los personajes de la serie Suits (no eres los personajes reales ni copias sus frases: hablas con su estilo, en su área y con consejos reales y concretos):
+${Object.values(BRAINS).map((b) => `- ${b.emoji} ${b.name} (${b.role}): sabe de ${b.area}. Estilo: ${b.voice} Puede: ${b.puede}`).join('\n')}
 
 Cómo respondes:
 - Español de Colombia, corto y concreto. Máximo ~8 líneas salvo que pida detalle.
 - Empieza cada parte con la etiqueta del cerebro que habla, en negrita, por ejemplo **⚖️ Harvey:**.
 - Si el modo es "auto", elige el cerebro (o máximo dos) que más sabe del tema.
-- Si el modo es "consejo", cada cerebro relevante da una línea y cierra **💜 Donna (resumen):** con la acción a tomar.
+- Si el modo es "consejo" (el bufete completo), Harvey, Donna, Louis y Mike dan una línea cada uno desde su área y **👑 Jessica (decisión):** cierra con la acción a tomar.
 - Si el modo nombra un cerebro, habla solo ese.
 - Sé realista y da crítica constructiva con números cuando algo no cuadre.
 - Termina con UNA acción concreta.
@@ -249,11 +273,14 @@ const MODEL_LABEL = { 'claude-opus-5-5': 'Opus', 'claude-sonnet-5-5': 'Sonnet', 
 
 // ---------- Llamada a Claude ----------
 async function ask(history, ui, model) {
-  const key = prefs.get('anthropicKey');
-  if (!key) throw Object.assign(new Error('Falta tu clave de Claude. Ábrela en ⚙︎ Ajustes de Harvey.'), { code: 'nokey' });
+  // La clave de Claude vive en el servidor (función `harvey` de Supabase). Aquí solo va tu sesión.
+  const { cloud } = await import('./sync.js');
+  const { HARVEY_URL } = await import('./config.js');
+  const token = await cloud.token().catch(() => null);
+  if (!token) throw Object.assign(new Error('Entra con Google (botón verde arriba) para hablar con Harvey.'), { code: 'nokey' });
+  await loadPerfil();
   const { Anthropic } = await import('./vendor/anthropic.js');
-  // Clave guardada solo en este dispositivo. Para uso compartido usa el proxy (docs/INSTALAR.md).
-  const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true, baseURL: prefs.get('proxyURL') || undefined });
+  const client = new Anthropic({ apiKey: 'nexo', baseURL: HARVEY_URL, dangerouslyAllowBrowser: true, defaultHeaders: { Authorization: 'Bearer ' + token } });
   const tools = await makeTools(ui);
   const params = {
     model,
@@ -318,7 +345,7 @@ export function mountChat(root, { appId, initial = '', compact = false } = {}) {
   injectCSS();
   root.innerHTML = `<div class="hv ${compact ? 'compact' : ''}">
     <div class="hv-modes" role="group" aria-label="Cerebro">
-      ${[['auto', '✨ Auto'], ...Object.entries(BRAINS).map(([k, b]) => [k, `${b.emoji} ${b.name}`]), ['consejo', '🏛 Consejo']].map(([k, l]) => `<button type="button" data-mode="${k}">${l}</button>`).join('')}
+      ${[['auto', '✨ Auto'], ...Object.entries(BRAINS).map(([k, b]) => [k, `${b.emoji} ${b.name}`]), ['consejo', '🏛 Bufete']].map(([k, l]) => `<button type="button" data-mode="${k}">${l}</button>`).join('')}
     </div>
     <div class="hv-log" id="hvlog" aria-live="polite"></div>
     <div class="hv-quick">${QUICK.map(([l, q]) => `<button type="button" data-q="${esc(q)}">${l}</button>`).join('')}</div>
@@ -390,8 +417,10 @@ export function mountChat(root, { appId, initial = '', compact = false } = {}) {
     } catch (err) {
       typing.remove();
       const status = err?.status;
+      const server = err?.error?.error?.message;
       const msg = err.code === 'nokey' ? err.message
-        : status === 401 ? 'Tu clave de Claude no es válida. Revísala en ⚙︎ Ajustes de Harvey.'
+        : server ? server
+        : status === 401 ? 'Tu sesión venció. Vuelve a entrar con Google.'
         : status === 429 ? 'Demasiadas solicitudes seguidas. Espera un minuto y vuelve a intentar.'
         : status === 529 || status >= 500 ? 'Claude está saturado en este momento. Intenta en un rato.'
         : !navigator.onLine ? 'Sin internet. Tus apps siguen funcionando; Harvey necesita conexión.'
@@ -430,30 +459,37 @@ export function mountChat(root, { appId, initial = '', compact = false } = {}) {
   }
   store.subscribe('chat', () => { if (!busy) paintLog(); });
   if (initial) send(initial);
-  if (!prefs.get('anthropicKey')) setTimeout(() => harveySettings(root), 300);
 }
 
 function harveySettings(root) {
   const wrap = document.createElement('div');
   wrap.className = 'hv-cfg card';
   wrap.innerHTML = `<h3>⚙︎ Ajustes de Harvey</h3><form class="form">
-    <div class="field"><label for="hk">Clave de Claude (API key)</label><input id="hk" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(prefs.get('anthropicKey', ''))}">
-      <small class="muted">Se guarda solo en este dispositivo. Créala en platform.claude.com → API keys y ponle un límite de gasto mensual.</small></div>
+    <p class="muted" style="margin:0">🔒 La clave de Claude vive en el servidor de Supabase, no en este dispositivo. Tope de gasto: US$0,50 al día.</p>
+    <p class="muted" id="hvUso" style="margin:0">Gasto de hoy: consultando…</p>
     <div class="field"><label for="hm">Modelo</label><select id="hm">${MODELS.map(([k, l]) => `<option value="${k}" ${prefs.get('model', MODEL_DEFAULT) === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-    <div class="field"><label for="hp">Proxy (opcional, avanzado)</label><input id="hp" type="url" placeholder="https://tu-proxy.workers.dev" value="${esc(prefs.get('proxyURL', ''))}"></div>
     <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="hv" ${prefs.get('voiceReply', false) ? 'checked' : ''}> Harvey responde en voz alta</label>
     <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="ha" ${prefs.get('autoSendVoice', true) ? 'checked' : ''}> Enviar solo al terminar de hablar</label>
     <div class="row end"><button type="button" class="btn btn-cancel sm" data-x>Cerrar</button><button class="btn btn-create sm">Guardar</button></div></form>`;
   root.querySelector('.hv').prepend(wrap);
-  wrap.querySelector('[data-x]').onclick = () => wrap.remove();
+  const close = () => wrap.parentNode && wrap.parentNode.removeChild(wrap);
+  import('./sync.js').then(async ({ cloud }) => {
+    const el = wrap.querySelector('#hvUso');
+    if (!cloud.user()) { el.textContent = 'Entra con Google para ver tu gasto.'; return; }
+    const sb = await cloud.client();
+    const hoy = fmt.today();
+    const { data } = await sb.from('uso_ia').select('costo_usd,fecha').gte('fecha', hoy.slice(0, 8) + '01');
+    const dia = (data || []).filter((r) => r.fecha === hoy).reduce((a, r) => a + Number(r.costo_usd), 0);
+    const mes = (data || []).reduce((a, r) => a + Number(r.costo_usd), 0);
+    el.textContent = `Gasto de hoy: US$${dia.toFixed(3)} · este mes: US$${mes.toFixed(2)}`;
+  }).catch(() => {});
+  wrap.querySelector('[data-x]').onclick = close;
   wrap.querySelector('form').addEventListener('submit', (e) => {
     e.preventDefault();
-    prefs.set('anthropicKey', wrap.querySelector('#hk').value.trim());
     prefs.set('model', wrap.querySelector('#hm').value);
-    prefs.set('proxyURL', wrap.querySelector('#hp').value.trim());
     prefs.set('voiceReply', wrap.querySelector('#hv').checked);
     prefs.set('autoSendVoice', wrap.querySelector('#ha').checked);
-    wrap.remove();
+    close();
   });
 }
 

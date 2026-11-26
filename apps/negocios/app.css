@@ -22,3 +22,24 @@ body { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, 
 .funnel div { display: grid; justify-items: center; padding: 10px 4px; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); font-size: 12px; color: var(--muted); clip-path: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%, 8% 50%); }
 .funnel div:first-child { clip-path: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%); }
 .funnel b { font: 700 20px var(--display); color: var(--fg); }
+/* Cotizador por planes */
+.chips-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; scrollbar-width: none; }
+.pill { --pc: var(--accent); flex: none; padding: 8px 14px; border-radius: 99px; border: 1.5px solid color-mix(in srgb, var(--pc) 45%, var(--line)); background: var(--panel); font-weight: 700; cursor: pointer; }
+.pill.sm { padding: 6px 12px; font-size: 13px; font-weight: 600; }
+.pill.on { background: var(--pc); border-color: var(--pc); color: #0B0F15; }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 14px; }
+.plan { position: relative; text-align: left; display: grid; gap: 4px; padding: 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--panel); cursor: pointer; transition: transform .15s, border-color .15s; }
+.plan:hover { transform: translateY(-2px); }
+.plan.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+.plan.rec { border-color: color-mix(in srgb, var(--c-pending) 60%, var(--line)); }
+.plan .rec-tag { position: absolute; top: -10px; right: 10px; background: var(--c-pending); color: #1a1405; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; }
+.plan b { font: 700 16px var(--display); } .plan .pp { font: 700 22px var(--display); } .plan small { font-size: 12px; color: var(--muted); }
+.plan .rinde { font-size: 12px; font-weight: 700; color: var(--c-create); }
+.sumrow { display: flex; justify-content: space-between; font-size: 14px; }
+.qsum .tot small { font-size: 14px; color: var(--muted); }
+.combo { display: grid; gap: 6px; } .combo.hot { border-color: var(--c-pending); box-shadow: 0 0 0 1px var(--c-pending) inset; }
+/* Registro diario */
+.nums { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.num-card { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--panel); border: 1.5px solid var(--line); }
+.num-card.ok { border-color: var(--c-create); background: color-mix(in srgb, var(--c-create) 8%, var(--panel)); }
+.num-card .ic { font-size: 22px; } .num-card b { display: block; font-size: 14px; } .num-card .muted { font-size: 12px; }

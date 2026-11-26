@@ -12,26 +12,17 @@
 | iPhone (Safari) | Abre el enlace → botón **Compartir** → **Agregar a inicio**. |
 | Windows (Edge/Chrome) | Abre el enlace → ícono de instalar en la barra de direcciones → **Instalar**. Queda en el menú Inicio. |
 
-## 3. Cuenta de Google + respaldo (Firebase, gratis) — 15 min
-1. Entra a https://console.firebase.google.com → **Agregar proyecto** → nombre `nexo-apps` (sin Analytics).
-2. **Authentication → Comenzar → Google → Habilitar**.
-   En *Settings → Authorized domains* agrega `nexopc.github.io`.
-3. **Firestore Database → Crear base de datos** → modo producción → región `southamerica-east1`.
-   En la pestaña **Reglas** pega el contenido de `firestore.rules` y publica.
-4. **Configuración del proyecto (⚙︎) → Tus apps → Web (</>)** → registra `nexo-web` → copia los valores
-   `apiKey`, `authDomain`, `projectId`, `appId` en `core/config.js`.
-5. Sube el cambio a GitHub. En cada app: ⚙︎ Ajustes → **Entrar con Google**.
-
-> La `apiKey` de Firebase NO es secreta (identifica el proyecto). Lo que protege tus datos son las reglas del paso 3.
+## 3. Cuenta de Google + nube (Supabase, gratis) — ya configurado
+- Proyecto Supabase `nexo` (región us-east-1). Tablas: `registros` (todas las apps), `perfil` (privado), `uso_ia`, `plantillas`. RLS: cada fila solo la ve su dueño.
+- Login con Google: cliente OAuth en Google Cloud + proveedor Google en Supabase. Redirect URLs: `https://nexopc.github.io/nexo-apps/**` y `https://nexopc.github.io/Nexo-plan/**`.
+- En cada app: botón verde **Entrar con Google** (una vez por dispositivo; la sesión la comparten todas las apps NEXO y NEXO PLAN).
+- Claude lee tus datos desde cualquier chat con el **conector de Supabase** en claude.ai.
 
 ## 4. Cerebro de Harvey (API de Claude)
-1. Crea cuenta en https://platform.claude.com → **Billing**: carga US$5 y pon **límite mensual** (ej. US$10).
-2. **API Keys → Create key** → cópiala.
-3. Abre Harvey → **⚙︎ Ajustes de Harvey** → pega la clave → Guardar. Se guarda solo en ese dispositivo.
-4. Modelo: **Automático** por defecto. Registros rápidos usan Haiku 5.5 (barato), conversación normal Sonnet 5.5 y análisis, planes o el consejo usan Opus 5.5 (el más capaz). Se puede fijar uno en los ajustes.
-
-Costo aproximado con Opus 5.5 y uso diario normal (≈10 mensajes/día): US$5–10/mes (≈ $20.000–40.000 COP).
-Con Haiku 5.5: menos de US$1/mes.
+- La clave vive SOLO en Supabase como secreto `ANTHROPIC_API_KEY` de la función `harvey` (nunca en el celular).
+- Para ponerla: platform.claude.com → compra créditos (mínimo de la consola) con **límite mensual** → API keys → crea `nexo-harvey` → pídele a Claude que abra el formulario de secreto de Supabase y pégala ahí.
+- Tope automático de gasto: US$0,50 al día (variable `HARVEY_LIMITE_DIA_USD`). El gasto se ve en ⚙︎ Ajustes de Harvey.
+- Modelo automático: Haiku (registros rápidos) · Sonnet (conversación) · Opus (análisis, planes, bufete).
 
 ## 5. Seguridad en el dispositivo
 ⚙︎ Ajustes → **Poner PIN** (4 dígitos) → **Face ID / huella**. Aplica a todas las apps NEXO de ese dispositivo.

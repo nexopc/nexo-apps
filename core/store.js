@@ -1,12 +1,12 @@
 // NEXO Brain — el lugar ÚNICO donde todas las apps guardan tu información.
-// Local primero (funciona sin internet) + sincronización con Firebase cuando hay cuenta de Google.
+// Local primero (funciona sin internet) + sincronización con Supabase cuando entras con Google.
 // Todas las apps leen y escriben aquí; Harvey también. Un cambio en una app aparece en vivo en las demás.
 
 const PREFIX = 'nexo:data:';
 const channel = 'BroadcastChannel' in self ? new BroadcastChannel('nexo-brain') : null;
 const listeners = new Map(); // col -> Set(fn)
 const cache = new Map();     // col -> array
-let remote = null;           // adaptador de Firebase (core/sync.js)
+let remote = null;           // cola hacia Supabase (core/sync.js)
 
 const uid = () => (crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, '').slice(0, 16);
 const now = () => new Date().toISOString();

@@ -21,3 +21,7 @@ body { background: radial-gradient(1200px 500px at 100% -10%, color-mix(in srgb,
 .step .n { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--panel2); font-weight: 700; }
 .step.ok { opacity: 1; } .step.ok .n { background: var(--c-create); color: #08110c; }
 .step.cur { opacity: 1; border-color: var(--c-pending); } .step.cur .n { background: var(--c-pending); color: #1a1405; }
+
+/* Mezcla: verde neón del documento sobre negro verdoso */
+:root { --bg: #07120C; --bg2: #0B1912; --panel: #0F1F17; --panel2: #13271D; --line: #1E3A2B; }
+:root[data-theme="light"] { --bg: #F2F8F4; --bg2: #E6F1EA; --panel: #FFFFFF; --panel2: #EEF6F1; --line: #D3E6DA; }

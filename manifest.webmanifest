@@ -2,7 +2,7 @@
  "name": "NEXO",
  "short_name": "NEXO",
  "start_url": "./index.html",
- "scope": "./",
+ "scope": "./index.html",
  "display": "standalone",
  "background_color": "#0D1016",
  "theme_color": "#0D1016",
@@ -29,28 +29,6 @@
    "src": "core/icons/nexo.svg",
    "sizes": "any",
    "type": "image/svg+xml"
-  }
- ],
- "shortcuts": [
-  {
-   "name": "NEXO Finanzas",
-   "url": "./apps/finanzas/index.html"
-  },
-  {
-   "name": "NEXO Negocios",
-   "url": "./apps/negocios/index.html"
-  },
-  {
-   "name": "NEXO Studio",
-   "url": "./apps/studio/index.html"
-  },
-  {
-   "name": "NEXO Aprende",
-   "url": "./apps/aprende/index.html"
-  },
-  {
-   "name": "Harvey · NEXO",
-   "url": "./apps/harvey/index.html"
   }
  ],
  "id": "nexo-hub"

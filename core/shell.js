@@ -152,7 +152,8 @@ async function doUpdate(appId, latest) {
   const reg = await navigator.serviceWorker?.getRegistration();
   reg?.active?.postMessage({ type: 'purge', scope: appId });
   // borra solo la caché de ESTA app → las demás apps y Harvey no se tocan
-  if (window.caches) for (const k of await caches.keys()) if (k === 'nexo-app-' + appId) await caches.delete(k);
+  // borra la caché de ESTA app y la del núcleo compartido (se vuelve a bajar sola); tus datos no se tocan
+  if (window.caches) for (const k of await caches.keys()) if (k === 'nexo-app-' + appId || k === 'nexo-core') await caches.delete(k);
   prefs.set('ver:' + appId, latest);
   location.reload();
 }
@@ -290,7 +291,7 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
       const u = await checkUpdate(appId, prefs.get('ver:' + appId));
       if (u.offline) return toast('Sin internet: no se pudo buscar actualización');
       if (!u.has) return toast(`${app.name} está al día (v${u.latest})`);
-      if (await confirmSheet('Actualizar ' + app.name, `Nueva versión ${u.latest}. ${u.notes} Solo se actualiza esta app; tus datos y las demás apps no cambian.`, { yes: 'Actualizar', no: 'Después' })) doUpdate(appId, u.latest);
+      if (await confirmSheet('Actualizar ' + app.name, `Nueva versión ${u.latest}. ${u.notes} Se actualiza esta app y el núcleo compartido; tus datos no cambian.`, { yes: 'Actualizar', no: 'Después' })) doUpdate(appId, u.latest);
     }
   });
   fab.onclick = addCurrent;

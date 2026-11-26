@@ -1,6 +1,7 @@
 // Service worker NEXO: funciona sin internet y guarda CADA app en su propia caché.
 // Así, actualizar una app (botón ⟳) borra solo su caché y no toca las demás ni a Harvey.
 const CORE = 'nexo-core';
+// v2: el núcleo se actualiza solo en segundo plano
 const scopeURL = new URL(self.registration.scope);
 
 function cacheFor(url) {
@@ -24,8 +25,19 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(e.request, { cache: 'no-store' }).catch(() => caches.match(e.request)));
     return;
   }
-  // Resto: primero la caché de esa app (rápido y sin internet), si no está, red y se guarda.
   const name = cacheFor(url);
+  // Núcleo compartido (core/ y el Hub): responde con la caché y se actualiza solo en segundo plano,
+  // así un arreglo del núcleo llega a todas las apps al volver a abrirlas.
+  if (name === CORE) {
+    e.respondWith(caches.open(CORE).then(async (c) => {
+      const hit = await c.match(e.request, { ignoreSearch: true });
+      const net = fetch(e.request).then((res) => { if (res.ok) c.put(e.request, res.clone()); return res; }).catch(() => null);
+      if (hit) { e.waitUntil(net); return hit; }
+      return (await net) || Response.error();
+    }));
+    return;
+  }
+  // Cada app: primero su caché (rápido y sin internet); se renueva con su botón ⟳.
   e.respondWith(caches.open(name).then(async (c) => {
     const hit = await c.match(e.request, { ignoreSearch: true });
     if (hit) return hit;

@@ -1,7 +1,7 @@
 // Harvey — asistente IA de la red NEXO, con 5 "cerebros" inspirados en los personajes de Suits.
 // Lee TODAS las apps desde NEXO Brain y puede crear/editar/borrar registros,
 // pero cada cambio pasa por una tarjeta de confirmación Sí / No.
-import { store, prefs, fmt } from './store.js';
+import { store, prefs, fmt, blocksFor } from './store.js';
 import { SCHEMA, schemaForAI } from './schema.js';
 import { APPS } from './registry.js';
 
@@ -57,7 +57,9 @@ export function snapshot() {
   const counts = Object.fromEntries(COLS.map((c) => [c, store.list(c).length]).filter(([, n]) => n));
   return {
     hoy: today, dia: fmt.day(), hora: new Date().toTimeString().slice(0, 5),
-    horario_hoy: store.list('blocks').filter((b) => b.day === dow).sort((a, b) => (a.start || '').localeCompare(b.start || '')).map((b) => `${b.start}-${b.end} ${b.title}`),
+    horario_hoy: blocksFor(today).map((b) => `${b.start}-${b.end} ${b.title}${b.kind ? ' [' + b.kind + ']' : ''}`),
+    horario_hoy_es_ajustado: !!store.get('dayPlans', 'day-' + today),
+    horario_manana: (() => { const d = new Date(); d.setDate(d.getDate() + 1); const iso = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); return { fecha: iso, bloques: blocksFor(iso).map((b) => `${b.start}-${b.end} ${b.title}`) }; })(),
     tareas_pendientes: store.list('tasks').filter((t) => !t.done).slice(0, 15).map((t) => ({ id: t.id, t: t.title, p: t.priority, para: t.due })),
     eventos_proximos: store.list('events').filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8).map((e) => `${e.date} ${e.title}`),
     parciales_proximos: store.list('exams').filter((e) => e.date >= today).slice(0, 6).map((e) => `${e.date} ${e.title}`),
@@ -88,6 +90,8 @@ Datos: todo vive en NEXO Brain. Usa la herramienta consultar para leer detalle (
 Para crear, actualizar o borrar usa crear / actualizar / borrar: la app le muestra a Cristóbal una tarjeta Sí / No antes de aplicar. No pidas confirmación por texto; llama la herramienta directamente y luego confirma el resultado.
 Fechas en formato AAAA-MM-DD, horas HH:MM, dinero en pesos colombianos como número sin puntos.
 Nunca leas entradas del diario marcadas como privadas.
+
+Reorganizar el horario: cuando pida mover, cambiar o reorganizar su día (o "agéndame", "no alcancé", "me salió algo"), usa reorganizar_dia con la lista COMPLETA de bloques de esa fecha. Respeta los bloques fijos (Colegio, Trabajo en la tienda) salvo que él diga lo contrario. Mete primero las tareas de prioridad alta y las que vencen pronto, deja descansos cortos y no pases de las 11 pm. El horario base de la semana no se toca: el ajuste vale solo para esa fecha.
 
 Colecciones y campos:
 ${schemaForAI()}`;
@@ -164,6 +168,33 @@ async function makeTools(ui) {
         if (!(await ui.confirm(d.title + ` · ${prev.title || prev.name || ''}`, d.body))) return 'El usuario dijo NO. No se cambió nada.';
         store.update(coleccion, id, cambios);
         return 'Actualizado.';
+      },
+    }),
+    betaTool({
+      name: 'reorganizar_dia',
+      description: 'Reemplaza el horario de UNA fecha con una lista nueva de bloques (no cambia el horario base semanal). Úsala para mover, agregar o quitar bloques del día según tareas y prioridades. Pide una sola confirmación Sí/No.',
+      inputSchema: { type: 'object', additionalProperties: false, required: ['fecha', 'bloques'], properties: {
+        fecha: { type: 'string', description: 'AAAA-MM-DD' },
+        motivo: { type: 'string', description: 'Por qué se reorganiza, en pocas palabras' },
+        bloques: { type: 'array', description: 'Todos los bloques del día, en orden', items: { type: 'object', additionalProperties: false, required: ['start', 'end', 'title'], properties: {
+          start: { type: 'string', description: 'HH:MM' }, end: { type: 'string', description: 'HH:MM' }, title: { type: 'string' },
+          kind: { type: 'string', enum: ['Colegio', 'Trabajo', 'Estudio', 'Clientes', 'Ejercicio', 'Descanso', 'Otro'] },
+        } } },
+      } },
+      run: async ({ fecha, motivo, bloques }) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) throw new Error('fecha debe ser AAAA-MM-DD');
+        if (!Array.isArray(bloques) || !bloques.length) throw new Error('bloques debe ser una lista con al menos un bloque');
+        const hm = /^\d{2}:\d{2}$/;
+        const clean = bloques.filter((b) => b && hm.test(b.start) && hm.test(b.end) && b.title).map((b) => ({ start: b.start, end: b.end, title: String(b.title), kind: b.kind || 'Otro' })).sort((a, b) => a.start.localeCompare(b.start));
+        if (!clean.length) throw new Error('Ningún bloque tiene start/end HH:MM y title');
+        const before = blocksFor(fecha).map((b) => `${b.start}-${b.end} ${b.title}`);
+        const after = clean.map((b) => `${b.start}-${b.end} ${b.title}`);
+        const removed = before.filter((x) => !after.includes(x)).map((x) => '− ' + x);
+        const added = after.filter((x) => !before.includes(x)).map((x) => '+ ' + x);
+        const body = `${motivo ? motivo + '\n\n' : ''}${[...removed, ...added].join('\n') || 'Sin cambios'}\n\nNUEVO DÍA:\n${after.join('\n')}`;
+        if (!(await ui.confirm(`🗓 Reorganizar ${fmt.date(fecha)}`, body))) return 'El usuario dijo NO. El horario no cambió.';
+        store.add('dayPlans', { id: 'day-' + fecha, date: fecha, reason: motivo || '', blocks: clean });
+        return `Horario del ${fecha} actualizado con ${clean.length} bloques.`;
       },
     }),
     betaTool({
@@ -258,6 +289,7 @@ const QUICK = [
   ['⏭ ¿Qué hago ahora?', '¿Qué debería estar haciendo ahora mismo según mi horario y pendientes?'],
   ['💸 Registrar gasto', 'Quiero registrar un gasto: '],
   ['✅ Nueva tarea', 'Agrega una tarea: '],
+  ['🗓 Reorganizar mi día', 'Reorganiza mi día de hoy desde ahora según mis tareas pendientes y prioridades. Mantén colegio y trabajo.'],
   ['📅 Bloque de estudio', 'Agéndame un bloque de estudio de '],
   ['📈 Resumen semanal', 'Haz mi revisión semanal: cumplimiento de horario, hábitos, plata y negocio. Qué mejorar.'],
 ];

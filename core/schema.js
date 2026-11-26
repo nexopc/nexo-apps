@@ -30,6 +30,9 @@ export const SCHEMA = {
     { k: 'kind', label: 'Se registra como', type: 'select', options: [['check', 'Sí / No'], ['qty', 'Cantidad'], ['min', 'Minutos']] },
     { k: 'target', label: 'Meta diaria (si aplica)', type: 'number' }, { k: 'emoji', label: 'Emoji', ph: '💪' },
   ] },
+  dayPlans: { app: 'plan', label: 'Ajustes del día (reemplazan el horario base solo en esa fecha)', hidden: true, fields: [
+    { k: 'date', label: 'Fecha', type: 'date' }, { k: 'reason', label: 'Motivo' },
+  ] },
   habitLogs: { app: 'plan', label: 'Registros de hábitos', hidden: true, fields: [
     { k: 'habit', label: 'Hábito', type: 'ref', ref: 'habits' }, { k: 'date', label: 'Fecha', type: 'date', today: true }, { k: 'value', label: 'Valor', type: 'number' },
   ] },

@@ -55,3 +55,14 @@ body { background-image: linear-gradient(color-mix(in srgb, var(--accent) 5%, tr
 .chart .dn { background: var(--accent); width: 55% !important; }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
 .sw.pl { background: color-mix(in srgb, var(--accent) 30%, transparent); } .sw.dn { background: var(--accent); }
+
+.day.adj { border-color: color-mix(in srgb, var(--c-pending) 60%, var(--line)); }
+.day-actions { margin-top: auto; display: flex; gap: 6px; }
+.day-actions .add-blk { margin-top: 0; flex: 1; font-size: 12px; font-weight: 600; color: var(--c-edit); }
+.day-actions .add-blk.base { flex: none; width: 36px; color: var(--c-create); font-size: 18px; }
+.de-rows { display: grid; gap: 8px; }
+.de-row { display: grid; grid-template-columns: 92px 92px 1fr; gap: 6px; align-items: center; padding: 8px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.de-row input, .de-row select { min-height: 40px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); min-width: 0; }
+.de-row input[data-k=title] { grid-column: 3; }
+.de-row select { grid-column: 1 / 3; }
+.de-del { grid-column: 3; justify-self: end; width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--c-delete); background: none; color: var(--c-delete); cursor: pointer; }

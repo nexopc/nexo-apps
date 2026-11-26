@@ -1,7 +1,8 @@
 // NEXO Plan · tu tiempo
-import { boot, fromSchema, store, fmt, esc, h, openForm, toast, weekStart, isoDay, mins } from '../../core/shell.js';
+import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, confirmSheet, openHarvey, weekStart, isoDay, mins } from '../../core/shell.js';
+import { blocksFor } from '../../core/store.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
 const PRI = { alta: 0, media: 1, baja: 2 };
@@ -19,7 +20,7 @@ function streak(habitId) {
 }
 function weekStats() {
   const days = weekDates();
-  const planned = store.list('blocks').reduce((a, b) => a + mins(b.start, b.end), 0);
+  const planned = days.reduce((a, d) => a + blocksFor(d).reduce((x, b) => x + mins(b.start, b.end), 0), 0);
   const done = store.list('hours').filter((x) => days.includes(x.date)).reduce((a, x) => a + (Number(x.minutes) || 0), 0);
   const tasks = store.list('tasks');
   const tDone = tasks.filter((t) => t.done && t.doneAt && days.includes(t.doneAt.slice(0, 10))).length;
@@ -34,22 +35,60 @@ function weekStats() {
 const horario = fromSchema('blocks', { id: 'horario', title: 'Horario', icon: '🗓', single: 'bloque',
   preset: () => ({ day: todayDow() }),
   render(el) {
-    const blocks = store.list('blocks');
-    const t = todayDow();
-    el.innerHTML = `<div class="week">${ORDER.map((d) => {
-      const list = blocks.filter((b) => b.day === String(d)).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+    const dates = weekDates();
+    el.innerHTML = `<div class="row" style="margin-bottom:12px"><button class="btn btn-ai" data-a="ai">🟣 Reorganizar mi día con Harvey</button><span class="muted" style="font-size:13px">El horario base se repite cada semana; los ajustes valen solo para ese día.</span></div>
+      <div class="week">${dates.map((date) => {
+      const d = new Date(date + 'T12:00').getDay();
+      const list = blocksFor(date);
+      const adj = !!store.get('dayPlans', 'day-' + date);
       const total = list.reduce((a, b) => a + mins(b.start, b.end), 0);
-      return `<section class="day ${String(d) === t ? 'today' : ''}"><header><b>${DAYS[d]}</b><span class="muted num">${total ? fmt.hours(total) : ''}</span></header>
-        ${list.map((b) => `<button class="blk" data-id="${b.id}" style="--k:${KIND_COLOR[b.kind] || 'var(--accent)'}"><span class="num">${esc(b.start || '')}–${esc(b.end || '')}</span>${esc(b.title)}</button>`).join('') || '<p class="muted none">Libre</p>'}
-        <button class="add-blk" data-day="${d}" aria-label="Agregar bloque el ${DAYS[d]}">＋</button></section>`;
+      return `<section class="day ${date === fmt.today() ? 'today' : ''} ${adj ? 'adj' : ''}"><header><b>${DAYS[d]} <span class="muted num">${date.slice(8)}</span></b><span class="muted num">${total ? fmt.hours(total) : ''}</span></header>
+        ${adj ? '<span class="chip s-pending">✏️ ajustado</span>' : ''}
+        ${list.map((b) => `<button class="blk" data-id="${b.id}" data-date="${date}" style="--k:${KIND_COLOR[b.kind] || 'var(--accent)'}"><span class="num">${esc(b.start || '')}–${esc(b.end || '')}</span>${esc(b.title)}</button>`).join('') || '<p class="muted none">Libre</p>'}
+        <div class="day-actions"><button class="add-blk" data-adjust="${date}" title="Ajustar solo este día">✏️ Ajustar día</button><button class="add-blk base" data-day="${d}" aria-label="Agregar bloque al horario base del ${DAYS[d]}" title="Agregar al horario base">＋</button></div></section>`;
     }).join('')}</div>`;
     el.onclick = (e) => {
-      const b = e.target.closest('.blk'); if (b) return openForm(horario, store.get('blocks', b.dataset.id));
-      const a = e.target.closest('.add-blk'); if (a) openForm(horario, null, { day: a.dataset.day });
+      if (e.target.closest('[data-a=ai]')) return openHarvey('Reorganiza mi día de hoy según mis tareas pendientes y prioridades. Mantén colegio y trabajo.');
+      const b = e.target.closest('.blk');
+      if (b) return store.get('dayPlans', 'day-' + b.dataset.date) ? dayEditor(b.dataset.date) : openForm(horario, store.get('blocks', b.dataset.id));
+      const ad = e.target.closest('[data-adjust]'); if (ad) return dayEditor(ad.dataset.adjust);
+      const a = e.target.closest('[data-day]'); if (a) openForm(horario, null, { day: a.dataset.day });
     };
-    // en móvil, desplaza al día de hoy
     setTimeout(() => el.querySelector('.day.today')?.scrollIntoView({ inline: 'start', block: 'nearest' }), 50);
   } });
+
+// Editor rápido de UN día (no toca el horario base)
+const KINDS = Object.keys(KIND_COLOR);
+function dayEditor(date) {
+  let rows = blocksFor(date).map((b) => ({ start: b.start, end: b.end, title: b.title, kind: b.kind || 'Otro' }));
+  const adj = !!store.get('dayPlans', 'day-' + date);
+  const body = h(`<div class="form"><p class="muted" style="margin:0">Cambia horas, nombres o agrega bloques. Solo afecta este día.</p><div class="de-rows"></div>
+    <button type="button" class="btn btn-create ghost sm" data-a="add">＋ Bloque</button>
+    <div class="row end">${adj ? '<button type="button" class="btn btn-delete ghost" data-a="reset">↺ Volver al base</button>' : ''}<button type="button" class="btn btn-ai ghost" data-a="ai">🟣 Que Harvey lo organice</button>
+      <button type="button" class="btn btn-cancel" data-a="cancel">Cancelar</button><button type="button" class="btn btn-create" data-a="save">✓ Guardar día</button></div></div>`);
+  const wrap = body.querySelector('.de-rows');
+  const paint = () => {
+    wrap.innerHTML = rows.map((r, i) => `<div class="de-row" data-i="${i}"><input type="time" value="${esc(r.start)}" data-k="start" aria-label="Empieza"><input type="time" value="${esc(r.end)}" data-k="end" aria-label="Termina">
+      <input value="${esc(r.title)}" data-k="title" placeholder="Actividad" aria-label="Actividad"><select data-k="kind" aria-label="Tipo">${KINDS.map((k) => `<option ${k === r.kind ? 'selected' : ''}>${k}</option>`).join('')}</select>
+      <button type="button" class="de-del" data-del="${i}" aria-label="Quitar bloque">✕</button></div>`).join('') || '<p class="muted">Día libre</p>';
+  };
+  paint();
+  wrap.addEventListener('input', (e) => { const row = e.target.closest('.de-row'); if (row) rows[+row.dataset.i][e.target.dataset.k] = e.target.value; });
+  const s = sheet(`Ajustar ${DAYS[new Date(date + 'T12:00').getDay()]} ${fmt.date(date)}`, body);
+  body.addEventListener('click', async (e) => {
+    const del = e.target.closest('[data-del]'); if (del) { rows.splice(+del.dataset.del, 1); paint(); return; }
+    const a = e.target.closest('[data-a]')?.dataset.a;
+    if (a === 'add') { const last = rows[rows.length - 1]; rows.push({ start: last?.end || '08:00', end: '', title: '', kind: 'Estudio' }); paint(); wrap.querySelector('.de-row:last-child input[data-k=title]')?.focus(); }
+    if (a === 'cancel') s.close();
+    if (a === 'ai') { s.close(); openHarvey(`Reorganiza mi horario del ${date} según mis tareas pendientes y prioridades.`); }
+    if (a === 'reset' && await confirmSheet('Volver al horario base', 'Se borra el ajuste de este día.', { yes: 'Volver al base', danger: true })) { store.remove('dayPlans', 'day-' + date); toast('Día restaurado'); s.close(); }
+    if (a === 'save') {
+      const clean = rows.filter((r) => r.title && r.start && r.end).sort((x, y) => x.start.localeCompare(y.start));
+      store.add('dayPlans', { id: 'day-' + date, date, reason: 'Ajuste manual', blocks: clean });
+      toast('Día ajustado'); s.close();
+    }
+  });
+}
 
 // ---------- Agenda ----------
 const agenda = fromSchema('events', { id: 'agenda', title: 'Agenda', icon: '📅', single: 'evento',
@@ -144,7 +183,7 @@ const horas = fromSchema('hours', { id: 'horas', title: 'Horas', icon: '⏱', si
       const a = e.target.closest('[data-a]')?.dataset.a;
       if (a === 'start') {
         const t = todayDow(); const n = nowHM();
-        const cur = store.list('blocks').find((b) => b.day === t && b.start <= n && b.end > n);
+        const cur = blocksFor(fmt.today()).find((b) => b.start <= n && b.end > n);
         timer = { t0: Date.now(), title: cur?.title || 'Trabajo enfocado', block: cur?.id || '' };
         localStorage.setItem('nexo:plan:timer', JSON.stringify(timer)); api.paint();
       }
@@ -167,7 +206,7 @@ const stats = { id: 'stats', title: 'Estadísticas', icon: '📊',
     const s = weekStats();
     const days = weekDates();
     const perDay = days.map((d) => store.list('hours').filter((x) => x.date === d).reduce((a, x) => a + (Number(x.minutes) || 0), 0));
-    const plannedDay = ORDER.map((d) => store.list('blocks').filter((b) => b.day === String(d)).reduce((a, b) => a + mins(b.start, b.end), 0));
+    const plannedDay = days.map((d) => blocksFor(d).reduce((a, b) => a + mins(b.start, b.end), 0));
     const max = Math.max(60, ...perDay, ...plannedDay);
     el.innerHTML = `<div class="grid k">
       <div class="card kpi"><div class="v num">${s.pct}%</div><div class="l">horario cumplido</div></div>
@@ -184,7 +223,7 @@ const stats = { id: 'stats', title: 'Estadísticas', icon: '📊',
 // ---------- Inicio ----------
 function home(el, api) {
   const t = todayDow(); const n = nowHM();
-  const today = store.list('blocks').filter((b) => b.day === t).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+  const today = blocksFor(fmt.today());
   const cur = today.find((b) => b.start <= n && b.end > n);
   const next = today.find((b) => b.start > n);
   const s = weekStats();
@@ -199,6 +238,7 @@ function home(el, api) {
       <h2>${cur ? esc(cur.title) : 'Tiempo libre'}</h2>
       <p class="muted" style="margin:4px 0 0">${cur ? `${cur.start}–${cur.end}` : ''}${next ? `${cur ? ' · ' : ''}Sigue: <b style="color:var(--fg)">${esc(next.title)}</b> a las ${next.start}` : today.length ? ' · No hay más bloques hoy' : 'Arma tu horario en 🗓 Horario'}</p>
       <div class="bar" style="margin-top:12px"><i style="width:${cur ? Math.round((mins(cur.start, n) / Math.max(1, mins(cur.start, cur.end))) * 100) : 0}%;background:var(--k)"></i></div>
+      <div class="row" style="margin-top:12px"><button class="btn btn-ai sm" data-a="reorg">🟣 Reorganizar mi día</button><button class="btn btn-edit ghost sm" data-a="adjust">✏️ Ajustar hoy</button></div>
     </div>
     <div class="grid k" style="margin-top:12px">
       <div class="card kpi"><div class="v num">${s.pct}%</div><div class="l">semana cumplida</div><div class="bar" style="margin-top:8px"><i style="width:${s.pct}%"></i></div></div>
@@ -212,6 +252,8 @@ function home(el, api) {
     </div>`;
   api.renderList(el.querySelector('#ht'), { ...tareas, filter: (r) => !r.done && tasks.some((x) => x.id === r.id), render: null, emptyTitle: 'Todo al día', emptyText: 'No tienes tareas pendientes.' });
   el.querySelector('[data-a=newtask]').onclick = () => openForm(tareas);
+  el.querySelector('[data-a=reorg]').onclick = () => openHarvey('Reorganiza mi día de hoy desde ahora según mis tareas pendientes y prioridades. Mantén colegio y trabajo.');
+  el.querySelector('[data-a=adjust]').onclick = () => dayEditor(fmt.today());
   el.querySelector('.hq').onclick = (e) => {
     const b = e.target.closest('[data-h]'); if (!b) return;
     const ex = store.list('habitLogs').find((l) => l.habit === b.dataset.h && l.date === fmt.today());

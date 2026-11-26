@@ -1,7 +1,7 @@
 // NEXO Studio · tu contenido
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const ST = [['idea', '💡', 'Idea'], ['guion', '📝', 'Guion'], ['grabado', '🎥', 'Grabado'], ['edicion', '✂️', 'Edición'], ['revision', '👀', 'Revisión'], ['publicado', '✅', 'Publicado']];
 const MOLDS = {
   'Gancho-Problema-Solución-CTA': 'GANCHO (0-3 s): \nPROBLEMA (3-10 s): \nSOLUCIÓN (10-40 s): \nCTA (últimos 5 s): ',

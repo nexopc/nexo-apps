@@ -1,7 +1,7 @@
 // NEXO Finanzas · tu plata
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const month = () => fmt.today().slice(0, 7);
 const sum = (arr) => arr.reduce((a, t) => a + (Number(t.amount) || 0), 0);
 const txMonth = (m = month()) => store.list('transactions').filter((t) => (t.date || '').startsWith(m));

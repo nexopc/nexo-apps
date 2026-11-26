@@ -1,22 +1,36 @@
 {
+ "id": "nexo-negocios",
  "name": "NEXO Negocios",
  "short_name": "Negocios",
  "start_url": "./index.html",
- "scope": "../../",
+ "scope": "./",
  "display": "standalone",
+ "orientation": "any",
  "background_color": "#0D1016",
  "theme_color": "#0D1016",
  "icons": [
   {
-   "src": "../../core/icons/negocios.svg",
-   "sizes": "any",
-   "type": "image/svg+xml"
+   "src": "../../core/icons/negocios-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
   },
   {
    "src": "../../core/icons/negocios-512.png",
    "sizes": "512x512",
    "type": "image/png",
-   "purpose": "any maskable"
+   "purpose": "any"
+  },
+  {
+   "src": "../../core/icons/negocios-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  },
+  {
+   "src": "../../core/icons/negocios.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
   }
  ]
 }

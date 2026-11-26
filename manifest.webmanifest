@@ -1,17 +1,57 @@
 {
-  "name": "NEXO — red de apps",
-  "short_name": "NEXO",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#0D1016",
-  "theme_color": "#0D1016",
-  "icons": [
-    { "src": "core/icons/nexo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
-  ],
-  "shortcuts": [
-    { "name": "NEXO Plan", "url": "./apps/plan/index.html" },
-    { "name": "NEXO Finanzas", "url": "./apps/finanzas/index.html" },
-    { "name": "Harvey", "url": "./apps/harvey/index.html" }
-  ]
+ "name": "NEXO",
+ "short_name": "NEXO",
+ "start_url": "./index.html",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#0D1016",
+ "theme_color": "#0D1016",
+ "icons": [
+  {
+   "src": "core/icons/nexo-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "core/icons/nexo-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "core/icons/nexo-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  },
+  {
+   "src": "core/icons/nexo.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
+  }
+ ],
+ "shortcuts": [
+  {
+   "name": "NEXO Finanzas",
+   "url": "./apps/finanzas/index.html"
+  },
+  {
+   "name": "NEXO Negocios",
+   "url": "./apps/negocios/index.html"
+  },
+  {
+   "name": "NEXO Studio",
+   "url": "./apps/studio/index.html"
+  },
+  {
+   "name": "NEXO Aprende",
+   "url": "./apps/aprende/index.html"
+  },
+  {
+   "name": "Harvey · NEXO",
+   "url": "./apps/harvey/index.html"
+  }
+ ],
+ "id": "nexo-hub"
 }

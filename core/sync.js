@@ -55,8 +55,10 @@ async function flush() {
       const now = readQ(); part.forEach((r) => { const k = r.coleccion + '/' + r.id; if (now[k]?.updated_at === r.updated_at) delete now[k]; }); writeQ(now);
     }
     setStatus('sincronizado');
-  } catch (e) { setStatus(navigator.onLine ? 'error' : 'sin-internet'); console.warn('sync', e); }
+  } catch (e) { setStatus(navigator.onLine ? 'error' : 'sin-internet'); console.warn('sync', e); flushing = false; setTimeout(flush, 15000); return; }
   flushing = false;
+  // Si mientras subíamos llegaron más cambios, subirlos también
+  if (Object.keys(readQ()).length) setTimeout(flush, 300);
 }
 
 async function pull() {

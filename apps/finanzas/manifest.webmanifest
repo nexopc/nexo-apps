@@ -1,0 +1,22 @@
+{
+ "name": "NEXO Finanzas",
+ "short_name": "Finanzas",
+ "start_url": "./index.html",
+ "scope": "../../",
+ "display": "standalone",
+ "background_color": "#0D1016",
+ "theme_color": "#0D1016",
+ "icons": [
+  {
+   "src": "../../core/icons/finanzas.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
+  },
+  {
+   "src": "../../core/icons/finanzas-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}

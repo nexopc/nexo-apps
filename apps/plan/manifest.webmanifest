@@ -1,0 +1,22 @@
+{
+ "name": "NEXO Plan",
+ "short_name": "Plan",
+ "start_url": "./index.html",
+ "scope": "../../",
+ "display": "standalone",
+ "background_color": "#0D1016",
+ "theme_color": "#0D1016",
+ "icons": [
+  {
+   "src": "../../core/icons/plan.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
+  },
+  {
+   "src": "../../core/icons/plan-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}

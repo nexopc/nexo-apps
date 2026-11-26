@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NEXO</title>
+<meta name="theme-color" content="#0D1016">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="core/icons/nexo.svg">
+<link rel="apple-touch-icon" href="core/icons/nexo-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="core/nexo.css">
+<style>
+  .hub { max-width: 1100px; margin: 0 auto; padding: calc(24px + var(--safe-t)) max(16px, var(--safe-r)) calc(40px + var(--safe-b)) max(16px, var(--safe-l)); }
+  .hub-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .hub-head .brand .logo { width: 44px; height: 44px; }
+  .hub-head .brand b { font-size: 22px; letter-spacing: .08em; }
+  .slogan { color: var(--muted); font-size: 13px; }
+  .greet { margin: 22px 0 6px; font-size: 30px; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); margin-top: 18px; }
+  .tile { --a: var(--accent); position: relative; overflow: hidden; display: grid; gap: 10px; padding: 18px; border-radius: 18px; text-decoration: none; color: var(--fg);
+    background: linear-gradient(150deg, color-mix(in srgb, var(--a) 20%, var(--panel)), var(--panel) 65%); border: 1px solid color-mix(in srgb, var(--a) 35%, var(--line)); transition: transform .2s, box-shadow .2s; }
+  .tile:hover { transform: translateY(-3px); box-shadow: 0 14px 30px color-mix(in srgb, var(--a) 22%, transparent); }
+  .tile:active { transform: scale(.98); }
+  .tile .ic { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: color-mix(in srgb, var(--a) 22%, var(--bg)); color: var(--a); }
+  .tile .ic svg { width: 28px; height: 28px; }
+  .tile b { font-family: var(--display); font-size: 18px; }
+  .tile .stat { font-size: 13px; color: var(--muted); }
+  .tile .stat strong { color: var(--fg); font-variant-numeric: tabular-nums; }
+  .tile .ver { position: absolute; top: 14px; right: 14px; font-size: 11px; color: var(--faint); }
+  .tile.add { --a: var(--c-create); border-style: dashed; background: var(--panel); place-content: center; justify-items: center; text-align: center; cursor: pointer; font: inherit; }
+  .ask { display: flex; gap: 8px; margin-top: 18px; }
+  .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 14px; border: 1.5px solid color-mix(in srgb, var(--c-ai) 50%, var(--line)); background: var(--panel); padding: 0 16px; }
+  .ask input:focus { outline: none; border-color: var(--c-ai); }
+  .foot { margin-top: 28px; display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="hub">
+  <header class="hub-head">
+    <div class="brand"><span class="logo" id="logo"></span><span><b>NEXO</b><small class="slogan">Excelencia digital, confianza real</small></span></div>
+    <div class="row"><span class="chip" id="cloud">● modo local</span><button class="icon-btn" id="cfg" aria-label="Ajustes">⚙︎</button></div>
+  </header>
+  <h1 class="greet" id="greet">Hola, Cristóbal</h1>
+  <p class="muted" id="today" style="margin:0;text-transform:capitalize"></p>
+  <form class="ask" id="ask"><input id="q" placeholder="Pregúntale a Harvey o pídele que registre algo…" aria-label="Pregunta para Harvey"><button class="btn btn-ai">🟣 Harvey</button></form>
+  <div class="tiles" id="tiles"></div>
+  <div class="foot">
+    <button class="btn btn-edit ghost sm" id="upcore">⟳ Actualizar núcleo NEXO</button>
+    <button class="btn btn-cancel ghost sm" id="devices">📱 Agregar otro dispositivo</button>
+  </div>
+</div>
+<script type="module">
+  import { applyPlatform } from './core/platform.js';
+  import { store, prefs, fmt } from './core/store.js';
+  import { allApps, LOGOS } from './core/registry.js';
+  import { lockScreen } from './core/security.js';
+  import { cloud } from './core/sync.js';
+  import { sheet, h, toast, esc, confirmSheet, openSettings } from './core/shell.js';
+
+  applyPlatform();
+  document.documentElement.dataset.theme = prefs.get('theme', 'dark');
+  document.getElementById('logo').innerHTML = LOGOS.nexo;
+  await lockScreen({ title: 'NEXO', logo: LOGOS.nexo });
+  const hr = new Date().getHours();
+  document.getElementById('greet').textContent = (hr < 12 ? 'Buenos días' : hr < 19 ? 'Buenas tardes' : 'Buenas noches') + ', Cristóbal';
+  document.getElementById('today').textContent = fmt.day();
+
+  const stat = {
+    plan: () => { const n = store.list('tasks').filter((t) => !t.done).length; return `<strong>${n}</strong> tareas pendientes`; },
+    finanzas: () => { const m = fmt.today().slice(0, 7); const tx = store.list('transactions').filter((t) => (t.date || '').startsWith(m)); const g = tx.filter((t) => t.type === 'gasto').reduce((a, t) => a + (+t.amount || 0), 0); return `<strong>${fmt.money(g)}</strong> gastado este mes`; },
+    negocios: () => { const n = store.list('jobs').filter((j) => !['pagado'].includes(j.status)).length; return `<strong>${n}</strong> trabajos activos`; },
+    studio: () => { const n = store.list('videos').filter((v) => v.status !== 'publicado').length; return `<strong>${n}</strong> videos en proceso`; },
+    aprende: () => { const n = store.list('exams').filter((e) => e.date >= fmt.today()).length; return `<strong>${n}</strong> evaluaciones próximas`; },
+    harvey: () => 'Tu asistente con 5 cerebros',
+  };
+  function paint() {
+    const t = document.getElementById('tiles');
+    t.innerHTML = allApps().map((a) => `<a class="tile" href="${esc(a.path || a.url)}" style="--a:${esc(a.accent || '#9B5CFF')}">
+      <span class="ic">${LOGOS[a.id] || LOGOS.custom}</span><span class="ver">v${esc(prefs.get('ver:' + a.id) || '1.0.0')}</span>
+      <span><b>${esc(a.name)}</b><div class="stat">${a.custom ? esc(a.tagline || 'App agregada') : stat[a.id]?.() || ''}</div></span></a>`).join('')
+      + `<button class="tile add" id="addapp"><span class="ic">${LOGOS.custom}</span><b>Agregar app</b><span class="stat">Suma una app nueva a la red</span></button>`;
+    document.getElementById('addapp').onclick = addApp;
+  }
+  paint();
+  store.subscribe('*', paint);
+
+  function addApp() {
+    const body = h(`<form class="form">
+      <div class="field"><label for="an">Nombre</label><input id="an" required placeholder="NEXO Tienda"></div>
+      <div class="field"><label for="at">¿Para qué sirve?</label><input id="at" placeholder="inventario de NEXO PC"></div>
+      <div class="field"><label for="au">Dirección (URL)</label><input id="au" type="url" placeholder="https://… o apps/tienda/"></div>
+      <div class="field"><label for="ac">Color</label><input id="ac" type="color" value="#9B5CFF"></div>
+      <div class="row end"><button type="button" class="btn btn-cancel" data-x>Cancelar</button><button class="btn btn-create">＋ Agregar</button></div></form>`);
+    const s = sheet('Agregar app a la red', body);
+    body.querySelector('[data-x]').onclick = () => s.close();
+    body.addEventListener('submit', (e) => { e.preventDefault(); if (!body.an.value.trim()) return;
+      store.add('apps', { id: 'x' + store.uid().slice(0, 6), name: body.an.value.trim(), tagline: body.at.value.trim(), url: body.au.value.trim() || '#', path: body.au.value.trim() || '#', accent: body.ac.value });
+      toast('App agregada'); s.close(); });
+  }
+  document.getElementById('ask').addEventListener('submit', (e) => { e.preventDefault(); const q = document.getElementById('q').value.trim(); location.href = 'apps/harvey/index.html' + (q ? '#q=' + encodeURIComponent(q) : ''); });
+  document.getElementById('upcore').onclick = async () => {
+    if (!(await confirmSheet('Actualizar núcleo', 'Descarga la versión más nueva del diseño, la seguridad y Harvey. Tus datos no se tocan.', { yes: 'Actualizar' }))) return;
+    if (window.caches) await caches.delete('nexo-core');
+    location.reload();
+  };
+  document.getElementById('devices').onclick = () => {
+    const body = h(`<div class="form"><ol style="margin:0;padding-left:20px;display:grid;gap:8px">
+      <li>En el otro celular o PC abre esta misma dirección: <b>${esc(location.origin + location.pathname.replace(/index\.html$/, ''))}</b></li>
+      <li><b>Android/Windows:</b> menú del navegador → <i>Instalar app</i>. <b>iPhone:</b> Safari → Compartir → <i>Agregar a inicio</i>.</li>
+      <li>Entra con la <b>misma cuenta de Google</b> (⚙︎ Ajustes) y todo se sincroniza solo.</li></ol>
+      ${cloud.available() ? '' : '<p class="chip s-pending" style="white-space:normal">Primero configura Firebase (docs/INSTALAR.md). Sin eso, cada dispositivo guarda sus datos por separado.</p>'}</div>`);
+    sheet('Agregar dispositivo', body);
+  };
+  document.getElementById('cfg').onclick = () => openSettings();
+  if (cloud.available()) { cloud.init(); cloud.onAuth((u) => { document.getElementById('cloud').textContent = u ? '● sincronizado' : '● sin sesión'; document.getElementById('cloud').className = 'chip ' + (u ? 's-create' : 's-pending'); }); }
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

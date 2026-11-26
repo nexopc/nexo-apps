@@ -3,7 +3,7 @@
 ## Decisiones por defecto (cambiables)
 | Tema | Decisión |
 |---|---|
-| Código | Un solo código (React + Vite, PWA) que se adapta a Android, iOS y Windows. Empaquetado nativo después con Capacitor (móvil) y Tauri (Windows). |
+| Código | HTML + JavaScript sin compilación (PWA). Un solo código que se adapta a Android, iOS y Windows (`core/platform.js` + `core/nexo.css`). Empaquetado nativo opcional después con Capacitor/Tauri. |
 | Datos | Firebase (plan gratis): Google login + Firestore en tiempo real + modo sin internet. |
 | Seguridad | Google login + PIN; huella/Face ID vía passkeys (fase 2: biometría nativa). |
 | IA | API de Claude. 5 cerebros: Harvey, Mike, Louis, Donna, Jessica. |
@@ -31,10 +31,18 @@
 ## Estructura del repo
 ```
 nexo-apps/
-├─ packages/
-│  ├─ core/      # login, PIN, sync Firebase, esquema de datos compartido
-│  ├─ ui/        # botones con código de color, temas por SO
-│  └─ brain/     # asistente IA + herramientas para leer/escribir datos
+├─ index.html   # Hub: todas las apps, agregar app, agregar dispositivo
+├─ sw.js        # sin internet + una caché por app (actualizaciones independientes)
+├─ core/
+│  ├─ store.js       # NEXO Brain: datos locales + tiempo real entre apps
+│  ├─ sync.js        # Google login + Firebase (todos los dispositivos)
+│  ├─ schema.js      # esquema ÚNICO de datos (apps + Harvey)
+│  ├─ shell.js       # barra, navegación por SO, formularios, botón ⟳, ajustes
+│  ├─ security.js    # PIN + Face ID / huella (passkey)
+│  ├─ harvey.js      # IA: 5 cerebros, herramientas con confirmación Sí/No, voz
+│  ├─ automations.js # cobro pagado → ingreso; parcial/grabación → agenda
+│  ├─ platform.js    # iOS / Android / Windows
+│  └─ vendor/        # SDK de Claude y Firebase empaquetados
 ├─ apps/
 │  ├─ plan/       # NEXO Plan · tu tiempo         (acento: azul)
 │  ├─ finanzas/   # NEXO Finanzas · tu plata      (acento: verde)

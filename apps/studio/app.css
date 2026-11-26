@@ -1,0 +1,28 @@
+/* NEXO Studio — identidad: sala de edición, rosa sobre negro tipo línea de tiempo de video. */
+body { background: repeating-linear-gradient(90deg, transparent 0 79px, color-mix(in srgb, var(--accent) 5%, transparent) 79px 80px) fixed, var(--bg); }
+.pipe { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.pp { display: grid; justify-items: center; gap: 2px; padding: 12px 4px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; }
+.pp b { font: 700 22px var(--display); } .pp small { color: var(--muted); font-size: 11px; }
+.pp:last-child { border-color: color-mix(in srgb, var(--c-create) 50%, var(--line)); }
+@media (max-width: 520px) { .pipe { grid-template-columns: repeat(3, 1fr); } }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+.lane { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 220px; }
+.lane header { display: flex; justify-content: space-between; }
+.vcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 6px; cursor: pointer; border-top: 3px solid var(--accent); }
+.vcard .muted { font-size: 12px; }
+.mv { border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.mv.fwd { border-color: var(--c-create); color: var(--c-create); margin-left: auto; }
+.ck { display: grid; gap: 6px; }
+.ckb { text-align: left; border: 1px solid var(--line); background: var(--panel2); border-radius: 10px; padding: 9px 12px; cursor: pointer; font-weight: 500; }
+.ckb.on { background: color-mix(in srgb, var(--c-create) 18%, var(--panel2)); border-color: var(--c-create); text-decoration: line-through; color: var(--muted); }
+.shoot.past { opacity: .6; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal .dh { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0; }
+.cd { min-height: 76px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; gap: 2px; overflow: hidden; min-width: 0; }
+.cd.today { border-color: var(--accent); }
+.cd .n { font-size: 11px; color: var(--muted); }
+.ev { font-style: normal; font-size: 10px; padding: 2px 4px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ev.pub { background: var(--accent); color: #12040a; } .ev.rec { background: var(--c-pending); color: #1a1405; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.pf { display: grid; gap: 8px; cursor: pointer; background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 16%, var(--panel)), var(--panel)); }
+.pf b { font-size: 17px; } .pf .res { color: var(--c-create); font-weight: 600; } .pf.hid { opacity: .5; }

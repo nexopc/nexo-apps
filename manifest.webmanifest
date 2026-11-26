@@ -1,0 +1,17 @@
+{
+  "name": "NEXO — red de apps",
+  "short_name": "NEXO",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0D1016",
+  "theme_color": "#0D1016",
+  "icons": [
+    { "src": "core/icons/nexo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "NEXO Plan", "url": "./apps/plan/index.html" },
+    { "name": "NEXO Finanzas", "url": "./apps/finanzas/index.html" },
+    { "name": "Harvey", "url": "./apps/harvey/index.html" }
+  ]
+}

@@ -1,0 +1,24 @@
+/* NEXO Negocios — identidad: oficina de operaciones naranja, tableros y embudo. */
+body { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, var(--bg)), var(--bg) 320px) fixed; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+.lane { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 200px; }
+.lane header { display: flex; justify-content: space-between; align-items: center; }
+.jcard { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 10px; display: grid; gap: 6px; cursor: pointer; transition: transform .15s; }
+.jcard:hover { transform: translateY(-2px); }
+.jcard .muted { font-size: 13px; }
+.quote { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .quote { grid-template-columns: 1fr 340px; align-items: start; } .qsum { position: sticky; top: 80px; } }
+.qsum { display: grid; gap: 10px; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.qsum .tot { font: 700 34px var(--display); color: var(--accent); }
+.stepper { display: flex; align-items: center; gap: 8px; flex: none; }
+.stepper button { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--panel2); font-size: 18px; font-weight: 700; cursor: pointer; }
+.stepper button[data-d="1"] { border-color: var(--c-create); color: var(--c-create); }
+.stepper button[data-d="-1"] { border-color: var(--c-delete); color: var(--c-delete); }
+.stepper span { min-width: 20px; text-align: center; font-weight: 700; }
+.timer { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; }
+.tclock { font: 700 34px var(--display); }
+.hbar { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; font-size: 13px; padding: 4px 0; }
+.funnel { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 14px; }
+.funnel div { display: grid; justify-items: center; padding: 10px 4px; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); font-size: 12px; color: var(--muted); clip-path: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%, 8% 50%); }
+.funnel div:first-child { clip-path: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%); }
+.funnel b { font: 700 20px var(--display); color: var(--fg); }

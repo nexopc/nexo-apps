@@ -1,0 +1,22 @@
+{
+ "name": "NEXO Aprende",
+ "short_name": "Aprende",
+ "start_url": "./index.html",
+ "scope": "../../",
+ "display": "standalone",
+ "background_color": "#0D1016",
+ "theme_color": "#0D1016",
+ "icons": [
+  {
+   "src": "../../core/icons/aprende.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
+  },
+  {
+   "src": "../../core/icons/aprende-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+/* NEXO Aprende — identidad: laboratorio (átomo, nanotecnología), amarillo sobre azul noche. */
+body { background: radial-gradient(800px 400px at 0% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%), radial-gradient(1px 1px at 20px 20px, color-mix(in srgb, var(--accent) 30%, transparent) 50%, transparent 51%) 0 0 / 40px 40px, var(--bg); background-attachment: fixed; }
+.subj { text-align: left; display: grid; gap: 6px; cursor: pointer; border-left: 4px solid var(--k); }
+.subj b { font-size: 16px; } .gr { font: 700 26px var(--display); }
+.route { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.route li { display: flex; gap: 12px; align-items: center; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.route li.cur { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.route li.ok { opacity: .65; } .route li.ok b { text-decoration: line-through; }
+.rc { width: 34px; height: 34px; flex: none; border-radius: 50%; border: 2px solid var(--line); background: var(--panel2); font-weight: 700; cursor: pointer; }
+.route li.ok .rc { background: var(--c-create); border-color: var(--c-create); color: #08110c; }
+.route li.cur .rc { border-color: var(--accent); color: var(--accent); }
+.rt { flex: 1; min-width: 0; cursor: pointer; } .rt a { color: var(--c-edit); font-size: 13px; }
+.studyc { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, var(--panel)), var(--panel)); }
+.boxes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.boxes div { display: grid; justify-items: center; padding: 10px 4px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); font-size: 12px; }
+.boxes b { font: 700 20px var(--display); } .boxes small { color: var(--muted); font-size: 10px; }
+.flash { position: relative; width: 100%; min-height: 240px; border-radius: 20px; border: 2px solid var(--accent); background: var(--panel); cursor: pointer; perspective: 900px; padding: 0; display: grid; }
+.flash span { grid-area: 1 / 1; display: grid; place-items: center; padding: 24px; font: 600 22px/1.35 var(--display); text-align: center; backface-visibility: hidden; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+.flash .back { transform: rotateY(180deg); color: var(--accent); }
+.flash.flipped .front { transform: rotateY(-180deg); } .flash.flipped .back { transform: rotateY(0); }

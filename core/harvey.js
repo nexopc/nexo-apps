@@ -1,7 +1,8 @@
 // Harvey — asistente IA de la red NEXO, con 5 "cerebros" inspirados en los personajes de Suits.
 // Lee TODAS las apps desde NEXO Brain y puede crear/editar/borrar registros,
 // pero cada cambio pasa por una tarjeta de confirmación Sí / No.
-import { store, prefs, fmt, blocksFor } from './store.js';
+import { store, prefs, fmt } from './store.js';
+import { planInfo, planDay, sendToPlan, PLAN_CATS } from './planlink.js';
 import { SCHEMA, schemaForAI } from './schema.js';
 import { APPS } from './registry.js';
 
@@ -50,18 +51,19 @@ function balanceByAccount() {
 }
 export function snapshot() {
   const today = fmt.today();
-  const dow = String(new Date().getDay());
-  const month = today.slice(0, 7);
+    const month = today.slice(0, 7);
   const tx = store.list('transactions').filter((t) => (t.date || '').startsWith(month));
   const sum = (arr) => arr.reduce((a, t) => a + (Number(t.amount) || 0), 0);
   const counts = Object.fromEntries(COLS.map((c) => [c, store.list(c).length]).filter(([, n]) => n));
   return {
     hoy: today, dia: fmt.day(), hora: new Date().toTimeString().slice(0, 5),
-    horario_hoy: blocksFor(today).map((b) => `${b.start}-${b.end} ${b.title}${b.kind ? ' [' + b.kind + ']' : ''}`),
-    horario_hoy_es_ajustado: !!store.get('dayPlans', 'day-' + today),
-    horario_manana: (() => { const d = new Date(); d.setDate(d.getDate() + 1); const iso = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); return { fecha: iso, bloques: blocksFor(iso).map((b) => `${b.start}-${b.end} ${b.title}`) }; })(),
-    tareas_pendientes: store.list('tasks').filter((t) => !t.done).slice(0, 15).map((t) => ({ id: t.id, t: t.title, p: t.priority, para: t.due })),
-    eventos_proximos: store.list('events').filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8).map((e) => `${e.date} ${e.title}`),
+    nexo_plan: planInfo() ? 'conectado (actualizado ' + planInfo().updatedAt.slice(0, 16).replace('T', ' ') + ')' : 'sin datos: abre NEXO PLAN una vez en este dispositivo',
+    horario_hoy: (planDay(today) || []).map((b) => `${b.s}-${b.e} ${b.title} [${b.cat}]${b.estado ? ' (' + b.estado + ')' : ''}${b.ancla ? ' ⚓' : ''}`),
+    horario_hoy_es_ajustado: !!planInfo()?.ajustado_hoy,
+    horario_manana: (planInfo()?.manana || []).map((b) => `${b.s}-${b.e} ${b.title}`),
+    tareas_pendientes: (planInfo()?.tareas || []).slice(0, 20).map((t) => ({ t: t.titulo, tipo: t.tipo, para: t.para })),
+    eventos_proximos: (planInfo()?.tareas || []).filter((t) => t.para && t.para.slice(0, 10) >= today).sort((a, b) => a.para.localeCompare(b.para)).slice(0, 8).map((t) => `${t.para.replace('T', ' ')} ${t.titulo}`),
+    cumplimiento_semana: planInfo()?.cumplimiento_semana || [],
     parciales_proximos: store.list('exams').filter((e) => e.date >= today).slice(0, 6).map((e) => `${e.date} ${e.title}`),
     saldos: balanceByAccount(),
     mes: { ingresos: sum(tx.filter((t) => t.type === 'ingreso')), gastos: sum(tx.filter((t) => t.type === 'gasto')) },
@@ -91,7 +93,9 @@ Para crear, actualizar o borrar usa crear / actualizar / borrar: la app le muest
 Fechas en formato AAAA-MM-DD, horas HH:MM, dinero en pesos colombianos como número sin puntos.
 Nunca leas entradas del diario marcadas como privadas.
 
-Reorganizar el horario: cuando pida mover, cambiar o reorganizar su día (o "agéndame", "no alcancé", "me salió algo"), usa reorganizar_dia con la lista COMPLETA de bloques de esa fecha. Respeta los bloques fijos (Colegio y compromisos con clientes) salvo que él diga lo contrario. Mete primero las tareas de prioridad alta y las que vencen pronto, deja descansos cortos y no pases de las 11 pm. El horario base de la semana no se toca: el ajuste vale solo para esa fecha.
+Su horario, tareas, metas, hábitos y ejercicio viven en la app NEXO PLAN (el contexto trae su horario de hoy y mañana y sus tareas).
+Tareas, exámenes y entregas: usa tarea_plan (no la colección tasks).
+Reorganizar el horario: cuando pida mover, cambiar o reorganizar su día (o "agéndame", "no alcancé", "me salió algo"), usa reorganizar_dia con la lista COMPLETA de bloques de esa fecha. Respeta Colegio, Dormir y los bloques ancla (⚓) salvo que él diga lo contrario. No cambies lo que ya pasó hoy. Mete primero las tareas de prioridad alta y las que vencen pronto, deja descansos cortos y no pases de las 11 pm. El horario base de la semana no se toca: el ajuste vale solo para esa fecha.
 
 Colecciones y campos:
 ${schemaForAI()}`;
@@ -178,23 +182,39 @@ async function makeTools(ui) {
         motivo: { type: 'string', description: 'Por qué se reorganiza, en pocas palabras' },
         bloques: { type: 'array', description: 'Todos los bloques del día, en orden', items: { type: 'object', additionalProperties: false, required: ['start', 'end', 'title'], properties: {
           start: { type: 'string', description: 'HH:MM' }, end: { type: 'string', description: 'HH:MM' }, title: { type: 'string' },
-          kind: { type: 'string', enum: ['Colegio', 'Trabajo', 'Estudio', 'Clientes', 'Ejercicio', 'Descanso', 'Otro'] },
+          cat: { type: 'string', enum: PLAN_CATS, description: 'Categoría de NEXO PLAN' },
         } } },
       } },
       run: async ({ fecha, motivo, bloques }) => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) throw new Error('fecha debe ser AAAA-MM-DD');
         if (!Array.isArray(bloques) || !bloques.length) throw new Error('bloques debe ser una lista con al menos un bloque');
         const hm = /^\d{2}:\d{2}$/;
-        const clean = bloques.filter((b) => b && hm.test(b.start) && hm.test(b.end) && b.title).map((b) => ({ start: b.start, end: b.end, title: String(b.title), kind: b.kind || 'Otro' })).sort((a, b) => a.start.localeCompare(b.start));
+        const clean = bloques.filter((b) => b && hm.test(b.start) && hm.test(b.end) && b.title).map((b) => ({ s: b.start, e: b.end, title: String(b.title), cat: PLAN_CATS.includes(b.cat) ? b.cat : 'rutina' })).sort((a, b) => a.s.localeCompare(b.s));
         if (!clean.length) throw new Error('Ningún bloque tiene start/end HH:MM y title');
-        const before = blocksFor(fecha).map((b) => `${b.start}-${b.end} ${b.title}`);
-        const after = clean.map((b) => `${b.start}-${b.end} ${b.title}`);
+        const before = (planDay(fecha) || []).map((b) => `${b.s}-${b.e} ${b.title}`);
+        const after = clean.map((b) => `${b.s}-${b.e} ${b.title}`);
         const removed = before.filter((x) => !after.includes(x)).map((x) => '− ' + x);
         const added = after.filter((x) => !before.includes(x)).map((x) => '+ ' + x);
         const body = `${motivo ? motivo + '\n\n' : ''}${[...removed, ...added].join('\n') || 'Sin cambios'}\n\nNUEVO DÍA:\n${after.join('\n')}`;
         if (!(await ui.confirm(`🗓 Reorganizar ${fmt.date(fecha)}`, body))) return 'El usuario dijo NO. El horario no cambió.';
-        store.add('dayPlans', { id: 'day-' + fecha, date: fecha, reason: motivo || '', blocks: clean });
-        return `Horario del ${fecha} actualizado con ${clean.length} bloques.`;
+        sendToPlan({ type: 'dayEdit', date: fecha, reason: motivo || '', blocks: clean });
+        return `Enviado a NEXO PLAN: el ${fecha} queda con ${clean.length} bloques (se aplica al abrir o volver a NEXO PLAN).`;
+      },
+    }),
+    betaTool({
+      name: 'tarea_plan',
+      description: 'Crea una tarea, examen, exposición o entrega en NEXO PLAN (con sus recordatorios). Pide confirmación Sí/No.',
+      inputSchema: { type: 'object', additionalProperties: false, required: ['titulo'], properties: {
+        titulo: { type: 'string' }, tipo: { type: 'string', enum: ['tarea', 'examen', 'expo', 'grupo'] },
+        para: { type: 'string', description: 'AAAA-MM-DD o AAAA-MM-DDTHH:MM' }, materia: { type: 'string' }, notas: { type: 'string' },
+      } },
+      run: async ({ titulo, tipo, para, materia, notas }) => {
+        if (!titulo) throw new Error('falta titulo');
+        if (para && !/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(para)) throw new Error('para debe ser AAAA-MM-DD o AAAA-MM-DDTHH:MM');
+        const body = [`Tipo: ${tipo || 'tarea'}`, para ? `Para: ${para.replace('T', ' ')}` : 'Para: mañana', materia ? `Materia: ${materia}` : '', notas || ''].filter(Boolean).join('\n');
+        if (!(await ui.confirm(`➕ Nueva en NEXO PLAN · ${titulo}`, body))) return 'El usuario dijo NO.';
+        sendToPlan({ type: 'task', title: titulo, tipo: tipo || 'tarea', due: para || '', subj: materia || '', notes: notas || '' });
+        return 'Enviada a NEXO PLAN.';
       },
     }),
     betaTool({
@@ -288,7 +308,7 @@ const QUICK = [
   ['☀️ Resumen de hoy', 'Dame el resumen de hoy: qué tengo, qué está pendiente y qué hago primero.'],
   ['⏭ ¿Qué hago ahora?', '¿Qué debería estar haciendo ahora mismo según mi horario y pendientes?'],
   ['💸 Registrar gasto', 'Quiero registrar un gasto: '],
-  ['✅ Nueva tarea', 'Agrega una tarea: '],
+  ['✅ Nueva tarea', 'Agrega en NEXO PLAN la tarea: '],
   ['🗓 Reorganizar mi día', 'Reorganiza mi día de hoy desde ahora según mis tareas pendientes y prioridades. Mantén el colegio y los compromisos con clientes.'],
   ['📅 Bloque de estudio', 'Agéndame un bloque de estudio de '],
   ['📈 Resumen semanal', 'Haz mi revisión semanal: cumplimiento de horario, hábitos, plata y negocio. Qué mejorar.'],

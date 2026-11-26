@@ -71,7 +71,7 @@
   document.getElementById('today').textContent = fmt.day();
 
   const stat = {
-    plan: () => { const n = store.list('tasks').filter((t) => !t.done).length; return `<strong>${n}</strong> tareas pendientes`; },
+    plan: () => { const p = store.raw('planBridge')[0]; return p ? `<strong>${(p.tareas || []).length}</strong> tareas pendientes` : 'Tu horario, metas y ejercicio'; },
     finanzas: () => { const m = fmt.today().slice(0, 7); const tx = store.list('transactions').filter((t) => (t.date || '').startsWith(m)); const g = tx.filter((t) => t.type === 'gasto').reduce((a, t) => a + (+t.amount || 0), 0); return `<strong>${fmt.money(g)}</strong> gastado este mes`; },
     negocios: () => { const n = store.list('jobs').filter((j) => !['pagado'].includes(j.status)).length; return `<strong>${n}</strong> trabajos activos`; },
     studio: () => { const n = store.list('videos').filter((v) => v.status !== 'publicado').length; return `<strong>${n}</strong> videos en proceso`; },

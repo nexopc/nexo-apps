@@ -54,7 +54,8 @@ const cerebros = { id: 'cerebros', title: 'Cerebros', icon: '🧠',
 const memoria = { id: 'memoria', title: 'Lo que sé de ti', icon: '🗂',
   render(el) {
     el.innerHTML = `<p class="muted" style="margin:0 0 12px">Todo lo que guardan tus apps vive en un solo lugar (NEXO Brain). Harvey lo lee en tiempo real.</p>
-      <div class="grid">${APPS.filter((a) => a.id !== 'harvey').map((a) => `<a class="card appc" href="../../${a.path}" style="--k:${a.accent}"><div class="row"><span class="ic">${LOGOS[a.id]}</span><b>${esc(a.name)}</b></div>
+      <div class="grid">${APPS.filter((a) => a.id !== 'harvey').map((a) => `<a class="card appc" href="${a.external ? a.path : '../../' + a.path}" style="--k:${a.accent}"><div class="row"><span class="ic">${LOGOS[a.id]}</span><b>${esc(a.name)}</b></div>
+        ${a.id === 'plan' ? (() => { const p = store.raw('planBridge')[0]; return p ? `<div class="row" style="justify-content:space-between;font-size:13px"><span class="muted">Bloques hoy</span><b class="num">${(p.hoy || []).length}</b></div><div class="row" style="justify-content:space-between;font-size:13px"><span class="muted">Tareas pendientes</span><b class="num">${(p.tareas || []).length}</b></div><div class="muted" style="font-size:12px">Actualizado ${esc(p.updatedAt.slice(0, 16).replace('T', ' '))}</div>` : '<div class="muted" style="font-size:13px">Abre NEXO PLAN una vez en este dispositivo para conectarla.</div>'; })() : ''}
         ${a.cols.filter((c) => SCHEMA[c] && !SCHEMA[c].hidden).map((c) => `<div class="row" style="justify-content:space-between;font-size:13px"><span class="muted">${esc(SCHEMA[c].label)}</span><b class="num">${store.list(c).length}</b></div>`).join('')}</a>`).join('')}</div>`;
   } };
 
@@ -62,8 +63,9 @@ const alertas = { id: 'alertas', title: 'Alertas', icon: '🔔',
   render(el) {
     const t = fmt.today(); const out = [];
     const d = (x) => Math.round((new Date(x + 'T12:00') - new Date(t + 'T12:00')) / 864e5);
-    store.list('tasks').filter((x) => !x.done && x.due && x.due < t).forEach((x) => out.push(['s-delete', '✅', `Tarea vencida: ${x.title}`, 'plan']));
-    store.list('tasks').filter((x) => !x.done && x.due === t).forEach((x) => out.push(['s-pending', '✅', `Para hoy: ${x.title}`, 'plan']));
+    const pt = store.raw('planBridge')[0]?.tareas || [];
+    pt.filter((x) => x.para && x.para.slice(0, 10) < t).forEach((x) => out.push(['s-delete', '✅', `Vencida: ${x.titulo}`, 'plan']));
+    pt.filter((x) => x.para && x.para.slice(0, 10) === t).forEach((x) => out.push(['s-pending', '✅', `Para hoy: ${x.titulo}`, 'plan']));
     store.list('exams').filter((x) => x.date >= t && d(x.date) <= 3).forEach((x) => out.push(['s-pending', '📝', `${x.title} en ${d(x.date)} días`, 'aprende']));
     store.list('subscriptions').filter((x) => x.nextDate && d(x.nextDate) <= 3).forEach((x) => out.push([d(x.nextDate) < 0 ? 's-delete' : 's-pending', '🔁', `Pago ${x.name}: ${fmt.money(x.amount)} ${d(x.nextDate) < 0 ? 'vencido' : 'en ' + d(x.nextDate) + ' d'}`, 'finanzas']));
     store.list('invoices').filter((x) => !x.paid && x.due && x.due < t).forEach((x) => out.push(['s-delete', '🧾', `Cobro vencido ${x.number || ''}: ${fmt.money(x.amount)}`, 'negocios']));
@@ -72,7 +74,7 @@ const alertas = { id: 'alertas', title: 'Alertas', icon: '🔔',
     store.list('shoots').filter((x) => x.date === t).forEach((x) => out.push(['s-pending', '🎬', `Grabación hoy: ${x.title}`, 'studio']));
     const cards = store.list('flashcards').filter((c) => !c.nextDate || c.nextDate <= t).length;
     if (cards) out.push(['s-edit', '🃏', `${cards} tarjetas para repasar`, 'aprende']);
-    el.innerHTML = out.length ? `<div class="list">${out.map(([c, i, txt, app]) => `<a class="list-item" href="../../apps/${app}/index.html" style="text-decoration:none;color:inherit"><span style="font-size:20px">${i}</span><div class="li-main" style="white-space:normal">${esc(txt)}</div><span class="chip ${c}">${esc(APPS.find((a) => a.id === app).name.replace('NEXO ', ''))}</span></a>`).join('')}</div>`
+    el.innerHTML = out.length ? `<div class="list">${out.map(([c, i, txt, app]) => `<a class="list-item" href="${app === 'plan' ? APPS[0].path : '../../apps/' + app + '/index.html'}" style="text-decoration:none;color:inherit"><span style="font-size:20px">${i}</span><div class="li-main" style="white-space:normal">${esc(txt)}</div><span class="chip ${c}">${esc(APPS.find((a) => a.id === app).name.replace('NEXO ', ''))}</span></a>`).join('')}</div>`
       : '<div class="empty"><b>Sin alertas</b>Todo está al día en tus 5 apps.</div>';
     if (out.length && 'Notification' in window && Notification.permission === 'granted' && !sessionStorage.getItem('nexo:notified')) {
       sessionStorage.setItem('nexo:notified', '1');

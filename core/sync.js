@@ -35,7 +35,7 @@ function start() {
 }
 function stop() { unsubs.splice(0).forEach((u) => u()); store.setRemote(null); }
 
-export const KNOWN = ['tasks','blocks','dayPlans','events','habits','habitLogs','goals','journal','hours',
+export const KNOWN = [
   'accounts','transactions','budgets','savings','subscriptions','alerts',
   'sources','services','combos','clients','jobs','timeLogs','invoices','prospects',
   'ideas','scripts','shoots','videos','references','portfolio','metrics',

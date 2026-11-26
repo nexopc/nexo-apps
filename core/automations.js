@@ -1,5 +1,6 @@
 // Automatizaciones entre apps (corren en cualquier app abierta; son idempotentes).
 import { store, fmt } from './store.js';
+import { sendOnce } from './planlink.js';
 
 function run() {
   // Negocios → Finanzas: un cobro marcado como pagado crea el ingreso.
@@ -13,19 +14,16 @@ function run() {
     }
     if (!inv.paid && tx.has(id) && !store.get('transactions', id)?._deleted) store.remove('transactions', id);
   }
-  // Aprende → Plan: cada evaluación aparece en la agenda.
-  const ev = new Set(store.raw('events').map((e) => e.id));
+  // Aprende → NEXO PLAN: cada evaluación llega como tarea tipo examen (con sus recordatorios).
   for (const ex of store.list('exams')) {
-    const id = 'exam-' + ex.id;
+    if (!ex.date) continue;
     const subj = store.get('subjects', ex.subject);
-    const want = { title: `📝 ${ex.title}${subj ? ' · ' + subj.name : ''}`, date: ex.date };
-    if (!ev.has(id)) store.add('events', { id, ...want });
-    else { const e = store.get('events', id); if (e && (e.title !== want.title || e.date !== want.date)) store.update('events', id, want); }
+    sendOnce('exam-' + ex.id + '-' + ex.date, { type: 'task', tipo: 'examen', title: ex.title + (subj ? ' · ' + subj.name : ''), due: ex.date + 'T07:00', subj: subj?.name || '', notes: ex.topics || '📝 Desde NEXO Aprende' });
   }
-  // Studio → Plan: cada grabación aparece en la agenda.
+  // Studio → NEXO PLAN: cada grabación llega como tarea con fecha y hora.
   for (const sh of store.list('shoots')) {
-    const id = 'shoot-' + sh.id;
-    if (!ev.has(id) && sh.date) store.add('events', { id, title: `🎥 ${sh.title}`, date: sh.date, time: sh.time || '' });
+    if (!sh.date) continue;
+    sendOnce('shoot-' + sh.id + '-' + sh.date, { type: 'task', tipo: 'tarea', title: '🎥 Grabación: ' + sh.title, due: sh.date + 'T' + (sh.time || '15:00'), notes: sh.place ? '📍 ' + sh.place : '🎬 Desde NEXO Studio' });
   }
 }
 let t = 0;

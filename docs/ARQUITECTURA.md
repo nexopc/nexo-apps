@@ -44,7 +44,6 @@ nexo-apps/
 │  ├─ platform.js    # iOS / Android / Windows
 │  └─ vendor/        # SDK de Claude y Firebase empaquetados
 ├─ apps/
-│  ├─ plan/       # NEXO Plan · tu tiempo         (acento: azul)
 │  ├─ finanzas/   # NEXO Finanzas · tu plata      (acento: verde)
 │  ├─ negocios/   # NEXO Negocios · tu trabajo    (acento: naranja)
 │  ├─ studio/     # NEXO Studio · tu contenido    (acento: rosa)
@@ -88,3 +87,10 @@ nexo-apps/
 - WhatsApp: solo vía WhatsApp Business API (Meta, verificación y costo por conversación). WhatsApp personal no se puede automatizar.
 - Instagram: API de Meta solo para cuentas profesionales.
 - iOS nativo requiere Mac + cuenta Apple (US$99/año). Mientras tanto: PWA instalada desde Safari.
+
+## NEXO Plan = app NEXO PLAN (repo nexopc/Nexo-plan)
+- La app oficial de tiempo es NEXO PLAN (APK + web en nexopc.github.io/Nexo-plan). La Plan nueva de esta red se retiró.
+- Puente (`core/planlink.js` ↔ `Nexo-plan/docs/js/nexo-bridge.js`), mismo sitio nexopc.github.io:
+  - NEXO PLAN → `nexo:data:planBridge`: horario de hoy y mañana, tareas pendientes, cumplimiento de la semana.
+  - Red NEXO → `nexo:plan:inbox`: `dayEdit` (Harvey reorganiza un día) y `task` (tareas, exámenes de Aprende, grabaciones de Studio).
+- Harvey usa `reorganizar_dia` y `tarea_plan`, siempre con tarjeta Sí / No.

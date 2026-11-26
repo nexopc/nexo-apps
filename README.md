@@ -3,7 +3,7 @@
 
 | App | Para qué | Color |
 |---|---|---|
-| **NEXO Plan** · tu tiempo | Horario, agenda, metas (mandala 64 + 4 años), hábitos, tareas, horas, diario, estadísticas | 🔵 |
+| **NEXO Plan** · tu tiempo | Tu app NEXO PLAN ([nexopc/Nexo-plan](https://github.com/nexopc/Nexo-plan)): horario, sesiones, metas, ejercicio y tareas. Ahora reorganiza el día con IA y se conecta a Harvey | 🩵 |
 | **NEXO Finanzas** · tu plata | Movimientos, bolsillos, presupuesto, ahorro, pagos fijos, alertas, reportes, libertad financiera | 🟢 |
 | **NEXO Negocios** · tu trabajo | Fuentes, servicios, combos, cotizador en vivo, clientes, trabajos, cronómetro, cobros, prospectos | 🟠 |
 | **NEXO Studio** · tu contenido | Ideas, guiones con moldes, grabaciones con checklist, tablero de videos, calendario, métricas, portafolio | 🩷 |

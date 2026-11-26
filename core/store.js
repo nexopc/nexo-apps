@@ -106,10 +106,3 @@ export const fmt = {
   hours: (m) => `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m`,
 };
 
-// Horario de una fecha: si existe un ajuste del día, manda; si no, el horario base de ese día de la semana.
-export function blocksFor(date) {
-  const plan = store.get('dayPlans', 'day-' + date);
-  if (plan?.blocks?.length) return plan.blocks.map((b, i) => ({ ...b, id: plan.id + ':' + i, adjusted: true })).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-  const dow = String(new Date(date + 'T12:00').getDay());
-  return store.list('blocks').filter((b) => b.day === dow).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-}

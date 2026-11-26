@@ -2,54 +2,9 @@
 // Las apps usan estos campos en sus formularios y Harvey los usa para leer y escribir.
 // Para agregar un campo o una colección nueva, hazlo aquí y todas las apps + Harvey lo conocen.
 
-const PRIORIDAD = [['alta', '🔴 Alta'], ['media', '🟡 Media'], ['baja', '🟢 Baja']];
-const DIAS = [['1', 'Lunes'], ['2', 'Martes'], ['3', 'Miércoles'], ['4', 'Jueves'], ['5', 'Viernes'], ['6', 'Sábado'], ['0', 'Domingo']];
-const PROYECTOS = ['NEXO PC', 'Agencia', 'App catálogo', 'Colegio', 'Tienda (trabajo)', 'Personal'];
 
 export const SCHEMA = {
-  // ---------- NEXO Plan ----------
-  blocks: { app: 'plan', label: 'Bloques del horario semanal', fields: [
-    { k: 'title', label: 'Actividad', required: true, ph: 'Colegio, tienda, estudiar Filmora…' },
-    { k: 'day', label: 'Día', type: 'select', options: DIAS },
-    { k: 'start', label: 'Empieza', type: 'time' }, { k: 'end', label: 'Termina', type: 'time' },
-    { k: 'kind', label: 'Tipo', type: 'select', options: ['Colegio', 'Trabajo', 'Estudio', 'Clientes', 'Ejercicio', 'Descanso', 'Otro'] },
-  ] },
-  events: { app: 'plan', label: 'Agenda y fechas importantes', fields: [
-    { k: 'title', label: 'Evento', required: true }, { k: 'date', label: 'Fecha', type: 'date', today: true },
-    { k: 'time', label: 'Hora', type: 'time' }, { k: 'note', label: 'Nota', type: 'textarea' },
-  ] },
-  goals: { app: 'plan', label: 'Metas (mandala 64 y línea de 4 años)', fields: [
-    { k: 'title', label: 'Meta', required: true },
-    { k: 'level', label: 'Nivel', type: 'select', options: [['central', 'Meta central'], ['pilar', 'Pilar (8)'], ['accion', 'Acción (64)'], ['hito', 'Hito en la línea de 4 años']] },
-    { k: 'parent', label: 'Pertenece a', type: 'ref', ref: 'goals', refLabel: 'title' },
-    { k: 'due', label: 'Fecha objetivo', type: 'date' }, { k: 'progress', label: 'Progreso %', type: 'number', step: 5, default: 0 },
-    { k: 'done', label: 'Cumplida', type: 'check' },
-  ] },
-  habits: { app: 'plan', label: 'Hábitos', fields: [
-    { k: 'name', label: 'Hábito', required: true, ph: 'Ejercicio, inglés, leer…' },
-    { k: 'kind', label: 'Se registra como', type: 'select', options: [['check', 'Sí / No'], ['qty', 'Cantidad'], ['min', 'Minutos']] },
-    { k: 'target', label: 'Meta diaria (si aplica)', type: 'number' }, { k: 'emoji', label: 'Emoji', ph: '💪' },
-  ] },
-  dayPlans: { app: 'plan', label: 'Ajustes del día (reemplazan el horario base solo en esa fecha)', hidden: true, fields: [
-    { k: 'date', label: 'Fecha', type: 'date' }, { k: 'reason', label: 'Motivo' },
-  ] },
-  habitLogs: { app: 'plan', label: 'Registros de hábitos', hidden: true, fields: [
-    { k: 'habit', label: 'Hábito', type: 'ref', ref: 'habits' }, { k: 'date', label: 'Fecha', type: 'date', today: true }, { k: 'value', label: 'Valor', type: 'number' },
-  ] },
-  tasks: { app: 'plan', label: 'Tareas pendientes', fields: [
-    { k: 'title', label: 'Tarea', required: true }, { k: 'priority', label: 'Prioridad', type: 'select', options: PRIORIDAD, default: 'media' },
-    { k: 'project', label: 'Proyecto', type: 'select', options: PROYECTOS }, { k: 'due', label: 'Para cuándo', type: 'date' },
-    { k: 'done', label: 'Hecha', type: 'check' },
-  ] },
-  hours: { app: 'plan', label: 'Horas cumplidas', fields: [
-    { k: 'title', label: '¿Qué hiciste?', required: true }, { k: 'date', label: 'Fecha', type: 'date', today: true },
-    { k: 'minutes', label: 'Minutos', type: 'number', required: true }, { k: 'block', label: 'Bloque del horario', type: 'ref', ref: 'blocks', refLabel: 'title' },
-  ] },
-  journal: { app: 'plan', label: 'Diario', fields: [
-    { k: 'date', label: 'Fecha', type: 'date', today: true }, { k: 'mood', label: 'Ánimo', type: 'select', options: ['😄', '🙂', '😐', '😕', '😣'] },
-    { k: 'good', label: '¿Qué salió bien hoy?', type: 'textarea' }, { k: 'learn', label: '¿Qué aprendí?', type: 'textarea' },
-    { k: 'tomorrow', label: '¿Qué hago mejor mañana?', type: 'textarea' }, { k: 'private', label: 'Privado (Harvey no lo lee)', type: 'check' },
-  ] },
+  // NEXO Plan (horario, tareas, metas, hábitos, diario) vive en la app NEXO PLAN → ver core/planlink.js
 
   // ---------- NEXO Finanzas ----------
   accounts: { app: 'finanzas', label: 'Cuentas y bolsillos', fields: [

@@ -1,6 +1,7 @@
 // Registro de la red NEXO: cada app con su color, logo y colecciones.
 // Para agregar una app nueva: añádela aquí (o desde el Hub con "Agregar app").
 import { store } from './store.js';
+import { PLAN_URL } from './planlink.js';
 
 const svg = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 
@@ -16,8 +17,8 @@ export const LOGOS = {
 };
 
 export const APPS = [
-  { id: 'plan', name: 'NEXO Plan', tagline: 'tu tiempo', accent: '#2D7CFF', path: 'apps/plan/',
-    cols: ['blocks', 'events', 'goals', 'habits', 'habitLogs', 'tasks', 'hours', 'journal'], brain: 'Donna' },
+  { id: 'plan', name: 'NEXO Plan', tagline: 'tu tiempo', accent: '#00E5FF', path: PLAN_URL, external: true,
+    cols: ['planBridge'], brain: 'Donna' },
   { id: 'finanzas', name: 'NEXO Finanzas', tagline: 'tu plata', accent: '#18C27A', path: 'apps/finanzas/',
     cols: ['accounts', 'transactions', 'budgets', 'savings', 'subscriptions', 'alerts'], brain: 'Louis' },
   { id: 'negocios', name: 'NEXO Negocios', tagline: 'tu trabajo', accent: '#FF8A1F', path: 'apps/negocios/',

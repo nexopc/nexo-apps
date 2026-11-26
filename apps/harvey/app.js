@@ -3,7 +3,7 @@ import { boot, store, fmt, esc, prefs } from '../../core/shell.js';
 import { APPS, LOGOS } from '../../core/registry.js';
 import { SCHEMA } from '../../core/schema.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const initialQ = location.hash.startsWith('#q=') ? decodeURIComponent(location.hash.slice(3)) : '';
 if (initialQ) history.replaceState(null, '', '#home');
 const harvey = () => import('../../core/harvey.js');

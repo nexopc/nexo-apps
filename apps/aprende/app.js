@@ -1,7 +1,7 @@
 // NEXO Aprende · tu estudio
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey, prefs } from '../../core/shell.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const INTERVAL = [1, 2, 4, 8, 16]; // días por caja (sistema Leitner)
 const sname = (id) => store.get('subjects', id)?.name || '';
 const daysTo = (d) => Math.round((new Date(d + 'T12:00') - new Date(fmt.today() + 'T12:00')) / 864e5);

@@ -28,7 +28,7 @@
 1. Crea cuenta en https://platform.claude.com → **Billing**: carga US$5 y pon **límite mensual** (ej. US$10).
 2. **API Keys → Create key** → cópiala.
 3. Abre Harvey → **⚙︎ Ajustes de Harvey** → pega la clave → Guardar. Se guarda solo en ese dispositivo.
-4. Modelo: por defecto **Claude Opus 5.5** (el más capaz). Si quieres gastar menos, elige **Haiku 5.5** en los ajustes.
+4. Modelo: **Automático** por defecto. Registros rápidos usan Haiku 5.5 (barato), conversación normal Sonnet 5.5 y análisis, planes o el consejo usan Opus 5.5 (el más capaz). Se puede fijar uno en los ajustes.
 
 Costo aproximado con Opus 5.5 y uso diario normal (≈10 mensajes/día): US$5–10/mes (≈ $20.000–40.000 COP).
 Con Haiku 5.5: menos de US$1/mes.

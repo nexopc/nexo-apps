@@ -18,8 +18,9 @@ export const BRAINS = {
              voice: 'Visión de largo plazo, calmada y firme. Piensa como dueña de empresa.' },
 };
 
-const MODEL_DEFAULT = 'claude-opus-5-5';
+const MODEL_DEFAULT = 'auto';
 export const MODELS = [
+  ['auto', 'Automático según el trabajo (recomendado)'],
   ['claude-opus-5-5', 'Claude Opus 5.5 (el más capaz)'],
   ['claude-sonnet-5-5', 'Claude Sonnet 5.5 (equilibrado)'],
   ['claude-haiku-5-5', 'Claude Haiku 5.5 (el más barato)'],
@@ -181,26 +182,41 @@ async function makeTools(ui) {
   ];
 }
 
+// ---------- Modelo automático según el trabajo ----------
+// Registros rápidos → Haiku (barato). Conversación normal → Sonnet. Análisis, planes, estrategia o consejo → Opus.
+const HEAVY = /(analiz|revis|estrateg|plan de|planea|organiza|semana|mes|consejo|por qu[eé]|c[oó]mo (hago|puedo|mejoro)|ideas?|propuesta|cotiza|negoci|precio|invertir|ahorr|libertad|universidad|saber 11|gui[oó]n|mensaje para)/i;
+const QUICK_RE = /^(agrega|agr[eé]game|registra|anota|crea|marca|pon|apunta|gast[eé]|pagu[eé]|recib[ií]|me pagaron|borra|elimina|mueve|cambia)\b/i;
+export function pickModel(text, mode) {
+  const chosen = prefs.get('model', MODEL_DEFAULT);
+  if (chosen !== 'auto') return chosen;
+  const t = text.trim();
+  if (mode === 'consejo' || HEAVY.test(t) || t.length > 280) return 'claude-opus-5-5';
+  if (QUICK_RE.test(t) || t.length < 50) return 'claude-haiku-5-5';
+  return 'claude-sonnet-5-5';
+}
+const MODEL_LABEL = { 'claude-opus-5-5': 'Opus', 'claude-sonnet-5-5': 'Sonnet', 'claude-haiku-5-5': 'Haiku' };
+
 // ---------- Llamada a Claude ----------
-async function ask(history, ui) {
+async function ask(history, ui, model) {
   const key = prefs.get('anthropicKey');
   if (!key) throw Object.assign(new Error('Falta tu clave de Claude. Ábrela en ⚙︎ Ajustes de Harvey.'), { code: 'nokey' });
   const { Anthropic } = await import('./vendor/anthropic.js');
   // Clave guardada solo en este dispositivo. Para uso compartido usa el proxy (docs/INSTALAR.md).
   const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true, baseURL: prefs.get('proxyURL') || undefined });
   const tools = await makeTools(ui);
-  const runner = client.beta.messages.toolRunner({
-    model: prefs.get('model', MODEL_DEFAULT),
+  const params = {
+    model,
     max_tokens: 16000,
     max_iterations: 8,
     system: systemPrompt(),
     cache_control: { type: 'ephemeral' },
-    output_config: { effort: 'low' },
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
+    output_config: { effort: model === 'claude-opus-5-5' ? 'medium' : 'low' },
     tools,
     messages: history,
-  });
+  };
+  // Respaldo automático si el modelo declina (Haiku no lo admite)
+  if (model !== 'claude-haiku-5-5') Object.assign(params, { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
+  const runner = client.beta.messages.toolRunner(params);
   const final = await runner.runUntilDone();
   if (final.stop_reason === 'refusal') return '⚠️ No puedo ayudar con eso. Intenta preguntarlo de otra forma.';
   return final.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim() || '✓ Listo.';
@@ -313,7 +329,9 @@ export function mountChat(root, { appId, initial = '', compact = false } = {}) {
     const typing = document.createElement('div'); typing.className = 'hv-msg ai typing'; typing.innerHTML = '<i></i><i></i><i></i>';
     log.appendChild(typing); log.scrollTop = log.scrollHeight;
     try {
-      const out = await ask(history, ui);
+      const model = pickModel(text, mode);
+      ui.note(`🧠 ${MODEL_LABEL[model] || model}`);
+      const out = await ask(history, ui, model);
       typing.remove();
       store.add('chat', { role: 'assistant', text: out });
       speak(out);

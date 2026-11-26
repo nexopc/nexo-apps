@@ -242,6 +242,7 @@ export async function boot({ appId, version, modules, home, staticHome = false }
     current = navMods.find((m) => m.id === id) || navMods[0];
     document.querySelectorAll('[data-nav]').forEach((b) => b.setAttribute('aria-current', b.dataset.nav === current.id ? 'page' : 'false'));
     fab.hidden = current.id === 'home' ? !modules.find((m) => m.fields && !m.noAdd) : !(current.fields && !current.noAdd);
+    const ia = root.querySelector('.ios-add'); if (ia) ia.hidden = fab.hidden;
     if (push && location.hash.slice(1) !== current.id) history.replaceState(history.state, '', '#' + current.id);
     paint();
     view.focus?.();

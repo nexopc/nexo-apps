@@ -172,7 +172,7 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; text-wra
 [data-os="ios"] .btn { border-radius: 14px; }
 [data-os="ios"] .sheet { border-radius: 14px 14px 0 0; }
 [data-os="ios"] .fab { display: none; }  /* en iOS la acción principal va en la barra superior */
-[data-os="ios"] .ios-add { display: grid !important; }
+[data-os="ios"] .ios-add:not([hidden]) { display: grid !important; }
 
 /* Android: Material — FAB, píldora en el ítem activo, botón atrás del sistema cierra hojas. */
 [data-os="android"] .nav-item[aria-current="page"] .ico { background: color-mix(in srgb, var(--accent) 22%, transparent); padding: 4px 18px; border-radius: 99px; transform: none; }

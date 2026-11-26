@@ -1,0 +1,11 @@
+/* Harvey — identidad: oficina de socio principal, dorado sobre negro con morado de IA. */
+body { background: radial-gradient(900px 420px at 50% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%), var(--bg); background-attachment: fixed; }
+.brand .logo { background: linear-gradient(135deg, #2a2110, #14100a); color: var(--accent); }
+.chat-full { max-width: 860px; margin: 0 auto; }
+.brain { text-align: left; display: grid; gap: 6px; cursor: pointer; border-top: 3px solid var(--k); }
+.brain .av { font-size: 30px; } .brain b { font: 700 19px var(--display); color: var(--k); }
+.brain i { font-size: 13px; color: var(--muted); }
+.brain.sel { box-shadow: 0 0 0 2px var(--k) inset; }
+.appc { display: grid; gap: 6px; text-decoration: none; color: inherit; border-top: 3px solid var(--k); }
+.appc .ic { width: 30px; height: 30px; display: grid; place-items: center; color: var(--k); }
+.appc .ic svg { width: 22px; height: 22px; }

@@ -162,7 +162,7 @@ export function renderList(el, mod) {
   el.onclick = (e) => {
     const c = e.target.closest('[data-check]');
     if (c) { const r = store.get(mod.collection, c.dataset.check); store.update(mod.collection, r.id, { [mod.checkField]: !r[mod.checkField], doneAt: !r[mod.checkField] ? new Date().toISOString() : null }); haptic(); mod.onCheck?.(r, !r[mod.checkField]); return; }
-    const it = e.target.closest('.list-item'); if (it) openForm(mod, store.get(mod.collection, it.dataset.id));
+    const it = e.target.closest('.list-item'); if (it) { const r = store.get(mod.collection, it.dataset.id); mod.onOpen ? mod.onOpen(r) : openForm(mod, r); }
   };
   el.onkeydown = (e) => { if (e.key === 'Enter' && e.target.classList.contains('list-item')) e.target.click(); };
 }

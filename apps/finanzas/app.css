@@ -25,3 +25,19 @@ body { background: radial-gradient(1200px 500px at 100% -10%, color-mix(in srgb,
 /* Mezcla: verde neón del documento sobre negro verdoso */
 :root { --bg: #07120C; --bg2: #0B1912; --panel: #0F1F17; --panel2: #13271D; --line: #1E3A2B; }
 :root[data-theme="light"] { --bg: #F2F8F4; --bg2: #E6F1EA; --panel: #FFFFFF; --panel2: #EEF6F1; --line: #D3E6DA; }
+
+/* Registrar en 3 toques */
+.reg3 { display: grid; gap: 14px; }
+.reg3 section { display: grid; gap: 8px; }
+.reg3 h4 { margin: 0; font: 700 12px var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.picks { display: flex; flex-wrap: wrap; gap: 7px; }
+.pick { min-height: 42px; padding: 8px 13px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font: 600 14px var(--font); cursor: pointer; }
+.pick.on { background: var(--accent); border-color: var(--accent); color: #04140B; }
+.pick.add { border-style: dashed; color: var(--accent); background: none; }
+.pick:active { transform: scale(.96); }
+.steps .pick { min-width: 58px; }
+.amt { font: 700 40px/1.1 var(--display); letter-spacing: -.02em; }
+.kp { width: 100%; min-height: 46px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--panel); color: var(--fg); font: 600 18px var(--font); }
+.seg.sm button { padding: 5px 10px; font-size: 13px; }
+.linkish { background: none; border: 0; color: var(--c-edit); font: 600 14px var(--font); padding: 4px 0; cursor: pointer; justify-self: start; }
+.reg3 .save { min-height: 52px; font-size: 16px; }

@@ -1,6 +1,7 @@
 // Harvey — asistente IA de la red NEXO, con 5 "cerebros" inspirados en los personajes de Suits.
 // Lee TODAS las apps desde NEXO Brain y puede crear/editar/borrar registros,
 // pero cada cambio pasa por una tarjeta de confirmación Sí / No.
+import { balances } from './fx.js';
 import { store, prefs, fmt } from './store.js';
 import { planInfo, planDay, sendToPlan, PLAN_CATS } from './planlink.js';
 import { SCHEMA, schemaForAI } from './schema.js';
@@ -59,18 +60,7 @@ const md = (s) => esc(s)
 
 // ---------- Contexto en tiempo real ----------
 function balanceByAccount() {
-  const acc = store.list('accounts');
-  const tx = store.list('transactions');
-  return acc.map((a) => {
-    let b = Number(a.initial) || 0;
-    for (const t of tx) {
-      const v = Number(t.amount) || 0;
-      if (t.type === 'ingreso' && t.account === a.id) b += v;
-      if (t.type === 'gasto' && t.account === a.id) b -= v;
-      if (t.type === 'traslado') { if (t.account === a.id) b -= v; if (t.toAccount === a.id) b += v; }
-    }
-    return { cuenta: a.name, saldo: b };
-  });
+  return balances().map((a) => ({ cuenta: a.name, moneda: a.currency, saldo: a.native, saldo_en_pesos: a.balance }));
 }
 export function snapshot() {
   const today = fmt.today();

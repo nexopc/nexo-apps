@@ -1,9 +1,10 @@
 // NEXO Negocios · tu trabajo
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
 import { estado, P10_CSS, SEMA } from '../../core/plan10m.js';
+import { timer, clock } from '../../core/timer.js';
 { const st = document.createElement('style'); st.textContent = P10_CSS; document.head.appendChild(st); }
 
-const VERSION = '1.1.0';
+const VERSION = '2.0.0';
 const STATUS = [['cotizado', 'Cotizado', 's-edit'], ['aprobado', 'Aprobado', 's-pending'], ['en curso', 'En curso', 's-pending'], ['entregado', 'Entregado', 's-create'], ['pagado', 'Pagado', 's-create']];
 const STAGES = [['nuevo', 'Nuevo'], ['contactado', 'Contactado'], ['reunión', 'Reunión'], ['propuesta', 'Propuesta'], ['ganado', 'Ganado'], ['perdido', 'Perdido']];
 const name = (col, id) => store.get(col, id)?.name || store.get(col, id)?.title || '';
@@ -17,12 +18,78 @@ function hourValue() {
 const copy = async (txt) => { try { await navigator.clipboard.writeText(txt); toast('Copiado: pégalo en WhatsApp'); } catch { toast('No se pudo copiar'); } };
 
 // ---------- Módulos simples ----------
+const minHora = () => Number(cfg10().minimoHora) || 35000;
+// Valores que salen solos de los datos base: horas reales (cronómetro), costos y precio → ganancia por hora y precio mínimo
+function derived(svc) {
+  const jobs = store.list('jobs').filter((j) => j.service === svc.id && minutesOf(j.id) > 0);
+  const real = jobs.length ? jobs.reduce((a, j) => a + minutesOf(j.id), 0) / jobs.length / 60 : 0;
+  const hours = real || Number(svc.hours) || 0;
+  const costos = Number(svc.costos) || 0;
+  const precio = Number(svc.price) || 0;
+  return { real: Math.round(real * 10) / 10, hours, costos, porHora: hours ? Math.round((precio - costos) / hours) : 0, minimo: Math.round(hours * minHora() + costos), medidos: jobs.length };
+}
+const ESTADO = { activa: ['🟢', 'Activa'], pausada: ['⏸', 'Pausada'], futura: ['📅', 'Empieza'] };
 const fuentes = fromSchema('sources', { id: 'fuentes', title: 'Fuentes', icon: '🧭', single: 'fuente de ingreso',
-  titleOf: (r) => r.name, subOf: (r) => `${store.list('services').filter((s) => s.source === r.id).length} servicios`,
-  sideOf: (r) => `<span class="up num">${fmt.money(paidOf((i) => store.get('jobs', i.job)?.source === r.id))}</span>` });
-const servicios = fromSchema('services', { id: 'servicios', title: 'Servicios', icon: '🧾', single: 'servicio',
+  render(el) {
+    const m = fmt.today().slice(0, 7);
+    const ss = store.list('sources');
+    el.innerHTML = `<p class="muted" style="margin:0 0 12px">Cada empresa o fuente con sus planes. Toca una para ver y editar sus planes.</p>
+      <div class="grid">${ss.map((x) => { const v = paidOf((i) => store.get('jobs', i.job)?.source === x.id && (i.date || '').startsWith(m)); const meta = Number(x.metaMes) || 0; const [ic, lb] = ESTADO[x.estado || 'activa'];
+        return `<button class="card src" data-src="${x.id}" style="--k:${esc(x.color || 'var(--accent)')}"><div class="row" style="justify-content:space-between"><b>${esc(x.name)}</b><span class="chip">${ic} ${lb}${x.estado === 'futura' && x.inicio ? ' ' + fmt.date(x.inicio) : ''}</span></div>
+          <span class="muted" style="font-size:13px">${store.list('services').filter((s) => s.source === x.id).length} planes · ${store.list('combos').filter((c) => c.source === x.id).length} combos</span>
+          <div class="bar"><i style="width:${meta ? Math.min(100, (v / meta) * 100) : 0}%;background:var(--k)"></i></div>
+          <span class="num" style="font-size:13px">${fmt.money(v)}${meta ? ' de ' + fmt.money(meta) : ''} este mes</span></button>`; }).join('')}</div>
+      <button class="btn btn-create ghost" data-a="new" style="width:100%;margin-top:12px">＋ Nueva empresa o fuente de ingreso</button>`;
+    el.onclick = (e) => {
+      if (e.target.closest('[data-a=new]')) return openForm(fuentes, null, { estado: 'activa' });
+      const c = e.target.closest('[data-src]'); if (c) fuenteDetalle(store.get('sources', c.dataset.src));
+    };
+  } });
+function fuenteDetalle(src) {
+  const body = h('<div class="form"></div>');
+  let un = null;
+  sheet(src.name, body, { onClose: () => un?.() });
+  const paint = () => {
+    const svcs = store.list('services').filter((x) => x.source === src.id).sort((a, b) => (a.name + a.price).localeCompare(b.name + b.price));
+    body.innerHTML = `<div class="row"><button class="btn btn-edit ghost sm" data-a="edit">✎ Editar fuente</button><button class="btn btn-create sm" data-a="plan">＋ Plan</button></div>
+      ${svcs.map((x) => { const d = derived(x); return `<div class="card plan" data-svc="${x.id}">
+        <div class="row" style="justify-content:space-between"><b>${esc(x.name)}${x.plan ? ' · ' + esc(x.plan) : ''}</b><b class="num">${fmt.money(x.price)}${x.mensual ? '/mes' : ''}</b></div>
+        <div class="dv num"><span>⏱ ${d.hours ? d.hours + ' h' : '—'}${d.real ? ' <i>(medido en ' + d.medidos + ')</i>' : x.hours ? ' <i>(estimado)</i>' : ''}</span><span>💸 costos ${fmt.money(d.costos)}</span>
+        <span class="${d.porHora && d.porHora < minHora() ? 'down' : 'up'}">${d.porHora ? fmt.money(d.porHora) + '/h' : '— /h'}</span><span>mínimo ${d.hours ? fmt.money(d.minimo) : '—'}</span></div></div>`; }).join('') || '<div class="empty"><b>Sin planes</b>Agrega el primero con ＋ Plan.</div>'}
+      <p class="muted" style="font-size:12px;margin:0">Gris = sale solo: horas del cronómetro, costos y tu hora mínima (${fmt.money(minHora())}). Tú cambias precio, extras y qué incluye.</p>`;
+  };
+  paint();
+  un = store.subscribe('services', paint);
+  body.addEventListener('click', (e) => {
+    const a = e.target.closest('[data-a]')?.dataset.a;
+    if (a === 'edit') return openForm(fuentes, src);
+    if (a === 'plan') return openForm(servicios, null, { source: src.id, anticipo: 50 });
+    const p = e.target.closest('[data-svc]'); if (p) openForm(servicios, store.get('services', p.dataset.svc));
+  });
+}
+
+// ---------- Calculadora: ¿cuánto me cuesta este trabajo? ----------
+const calculadora = { id: 'calculadora', title: 'Calculadora', icon: '🧮',
+  render(el) {
+    const C = calculadora.st || (calculadora.st = { horas: 4, costos: 20000, margen: 30 });
+    const paint = () => {
+      const base = C.horas * minHora() + C.costos;
+      const sug = Math.ceil((base * (1 + C.margen / 100)) / 1000) * 1000;
+      el.innerHTML = `<div class="card calc">
+        ${[['horas', '⏱ Horas reales', [-1, -0.5, 0.5, 1], (v) => v + ' h'], ['costos', '💸 Costos (datos, transporte, materiales)', [-10000, -5000, 5000, 10000], fmt.money], ['margen', '📈 Ganancia extra', [-10, -5, 5, 10], (v) => v + ' %']].map(([k, l, st, f]) => `
+          <div class="crow"><span>${l}</span><div class="row" style="gap:6px;flex-wrap:nowrap">${st.slice(0, 2).map((d) => `<button class="btn btn-cancel sm" data-k="${k}" data-d="${d}">${d > 0 ? '+' : '−'}</button>`).join('')}<b class="num" style="min-width:92px;text-align:center">${f(C[k])}</b>${st.slice(2).map((d) => `<button class="btn btn-create sm" data-k="${k}" data-d="${d}">+</button>`).join('')}</div></div>`).join('')}
+        <div class="crow"><span>Tu hora mínima</span><b class="num">${fmt.money(minHora())}</b></div></div>
+        <div class="grid k section"><div class="card kpi"><div class="v num">${fmt.money(base)}</div><div class="l">precio mínimo (no cobres menos)</div></div>
+        <div class="card kpi"><div class="v num up">${fmt.money(sug)}</div><div class="l">precio sugerido</div></div>
+        <div class="card kpi"><div class="v num">${fmt.money(C.horas ? Math.round((sug - C.costos) / C.horas) : 0)}</div><div class="l">ganas por hora</div></div></div>`;
+    };
+    paint();
+    el.onclick = (e) => { const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; const d = Number(b.dataset.d);
+      C[k] = Math.max(0, Math.round((C[k] + d) * 10) / 10); navigator.vibrate?.(6); paint(); };
+  } };
+const servicios = fromSchema('services', { id: 'servicios', title: 'Planes', icon: '🧾', single: 'plan',
   titleOf: (r) => r.name + (r.plan ? ' · ' + r.plan : ''), subOf: (r) => [name('sources', r.source), r.hours ? r.hours + ' h' : ''].filter(Boolean).map(esc).join(' · '),
-  sideOf: (r) => `${fmt.money(r.price)}${r.hours ? `<div class="muted" style="font-size:11px">${fmt.money(r.price / r.hours)}/h</div>` : ''}` });
+  sideOf: (r) => { const d = derived(r); return `${fmt.money(r.price)}${d.porHora ? `<div class="${d.porHora < minHora() ? 'down' : 'muted'}" style="font-size:11px">${fmt.money(d.porHora)}/h</div>` : ''}`; } });
 const combos = fromSchema('combos', { id: 'combos', title: 'Combos', icon: '🎁', single: 'combo', titleOf: (r) => r.name, subOf: (r) => esc(r.items || ''), sideOf: (r) => fmt.money(r.price) });
 
 // ---------- Clientes con historial ----------
@@ -174,7 +241,7 @@ function bind(el) {
     if (g('[data-a=wa]') && svc) { copyTxt(waText(svc, calc(svc), client)); bumpReg('cotizaciones'); return; }
     if (g('[data-a=save]') && svc) {
       const c = calc(svc);
-      store.add('jobs', { title: `${svc.name} · ${svc.plan}`, client: Q.client, source: svc.source, price: c.total, status: 'cotizado', fundador: Q.fundador, anticipo: c.anticipo });
+      store.add('jobs', { title: `${svc.name} · ${svc.plan}`, client: Q.client, source: svc.source, service: svc.id, price: c.total, status: 'cotizado', fundador: Q.fundador, anticipo: c.anticipo });
       bumpReg('cotizaciones'); toast('Trabajo cotizado creado · +1 cotización hoy'); Q.fundador = false; return;
     }
     const cw = g('[data-cwa]'); if (cw) { const cb = store.get('combos', cw.dataset.cwa); copyTxt(`Hola 👋 Te comparto el *${cb.name}*:\n${cb.items}\n${cb.separate ? 'Por separado: ' + fmt.money(cb.separate) + '\n' : ''}*Precio combo: ${fmt.money(cb.price)}*\n\n— Cristóbal`); bumpReg('cotizaciones'); return; }
@@ -209,23 +276,31 @@ const registro = fromSchema('registroDiario', { id: 'registro', title: 'Registro
     };
   } });
 
-// ---------- Cronómetro y valor real de tu hora ----------
-let run = JSON.parse(localStorage.getItem('nexo:neg:timer') || 'null');
+// ---------- Cronómetro (el mismo en todas las apps) y valor real de tu hora ----------
 const cronometro = { id: 'cronometro', title: 'Cronómetro', icon: '⏱',
   render(el) {
+    const t = timer.state();
     const jobs = store.list('jobs').filter((j) => j.status !== 'pagado');
     const rows = store.list('jobs').map((j) => { const m = minutesOf(j.id); const paid = paidOf((i) => i.job === j.id) || (j.status === 'pagado' ? +j.price || 0 : 0); return { j, m, v: m ? Math.round((paid || +j.price || 0) / (m / 60)) : 0 }; }).filter((r) => r.m);
-    el.innerHTML = `<div class="card timer"><div style="min-width:0;flex:1"><div class="field"><label for="tj">Trabajo</label><select id="tj" ${run ? 'disabled' : ''}>${jobs.map((j) => `<option value="${j.id}" ${run?.job === j.id ? 'selected' : ''}>${esc(j.title)}</option>`).join('') || '<option value="">Crea un trabajo primero</option>'}</select></div></div>
-        <div class="tclock num" id="clk">00:00:00</div>${run ? '<button class="btn btn-delete" data-a="stop">■ Detener</button>' : `<button class="btn btn-create" data-a="go" ${jobs.length ? '' : 'disabled'}>▶ Empezar</button>`}</div>
+    const logs = store.list('timeLogs').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6);
+    el.innerHTML = `<div class="card timer">${t ? `<div style="flex:1;min-width:0"><b>${esc(t.label)}</b><div class="muted" style="font-size:13px">${t.paused ? 'En pausa' : 'Corriendo'} · se ve arriba en todas tus apps</div></div>
+        <div class="tclock num" id="clk">${clock(timer.elapsed(t))}</div>
+        <div class="row">${t.paused ? '<button class="btn btn-pending" data-a="resume">▶ Seguir</button>' : '<button class="btn btn-pending" data-a="pause">⏸</button>'}<button class="btn btn-delete" data-a="stop">■ Terminar</button></div>`
+      : `<div style="min-width:0;flex:1"><div class="field"><label for="tj">¿En qué trabajas?</label><select id="tj"><option value="">— Otra cosa (escribe abajo) —</option>${jobs.map((j) => `<option value="${j.id}">${esc(j.title)}</option>`).join('')}</select></div>
+        <input id="tl" placeholder="Ej: buscar clientes en la calle" style="width:100%;min-height:42px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg)"></div>
+        <button class="btn btn-create" data-a="go">▶ Empezar</button>`}</div>
       <div class="grid k section"><div class="card kpi"><div class="v num">${fmt.money(hourValue())}</div><div class="l">valor real de tu hora (cobrado ÷ horas)</div></div>
-        <div class="card kpi"><div class="v num">${fmt.hours(store.list('timeLogs').reduce((a, t) => a + (+t.minutes || 0), 0))}</div><div class="l">horas registradas</div></div></div>
-      <div class="section"><h2>Por trabajo</h2><div class="list">${rows.sort((a, b) => a.v - b.v).map((r) => `<div class="list-item" style="cursor:default"><div class="li-main"><div class="li-title">${esc(r.j.title)}</div><div class="li-sub">${fmt.hours(r.m)} · ${fmt.money(r.j.price)}</div></div><div class="li-side ${r.v < 15000 ? 'down' : 'up'}">${fmt.money(r.v)}/h</div></div>`).join('') || '<div class="empty"><b>Sin tiempos todavía</b>Usa el cronómetro al trabajar: descubrirás qué servicio te paga mejor la hora.</div>'}</div></div>`;
-    const tick = () => { const c = el.querySelector('#clk'); if (!run || !c?.isConnected) return; const s = Math.floor((Date.now() - run.t0) / 1000); c.textContent = [s / 3600, (s / 60) % 60, s % 60].map((x) => String(Math.floor(x)).padStart(2, '0')).join(':'); setTimeout(tick, 1000); };
+        <div class="card kpi"><div class="v num">${fmt.hours(store.list('timeLogs').filter((x) => (x.kind || 'trabajo') === 'trabajo').reduce((a, x) => a + (+x.minutes || 0), 0))}</div><div class="l">horas de trabajo registradas</div></div></div>
+      <div class="section"><h2>Últimos tiempos</h2><div class="list">${logs.map((x) => `<div class="list-item" style="cursor:default"><div class="li-main"><div class="li-title">${esc(x.label || name('jobs', x.job) || 'Trabajo')}</div><div class="li-sub">${fmt.date(x.date)}${x.job ? ' · ' + esc(name('jobs', x.job)) : ''}</div></div><div class="li-side num">${fmt.hours(x.minutes)}</div></div>`).join('') || '<div class="empty"><b>Sin tiempos todavía</b>Usa el cronómetro al trabajar: descubrirás qué servicio te paga mejor la hora.</div>'}</div></div>
+      <div class="section"><h2>Por trabajo</h2><div class="list">${rows.sort((a, b) => a.v - b.v).map((r) => `<div class="list-item" style="cursor:default"><div class="li-main"><div class="li-title">${esc(r.j.title)}</div><div class="li-sub">${fmt.hours(r.m)} · ${fmt.money(r.j.price)}</div></div><div class="li-side ${r.v < minHora() ? 'down' : 'up'}">${fmt.money(r.v)}/h</div></div>`).join('') || '<p class="muted">Cuando midas trabajos aquí verás cuánto te paga cada hora.</p>'}</div></div>`;
+    const tick = () => { const c = el.querySelector('#clk'); const st = timer.state(); if (!st?.running || !c?.isConnected) return; c.textContent = clock(timer.elapsed(st)); setTimeout(tick, 1000); };
     tick();
     el.onclick = (e) => {
       const a = e.target.closest('[data-a]')?.dataset.a;
-      if (a === 'go') { run = { t0: Date.now(), job: el.querySelector('#tj').value }; localStorage.setItem('nexo:neg:timer', JSON.stringify(run)); this.render(el); }
-      if (a === 'stop') { const m = Math.max(1, Math.round((Date.now() - run.t0) / 60000)); store.add('timeLogs', { job: run.job, minutes: m, date: fmt.today() }); run = null; localStorage.removeItem('nexo:neg:timer'); toast(`Guardado ${fmt.hours(m)}`); }
+      if (a === 'go') { const jid = el.querySelector('#tj').value; const j = store.get('jobs', jid); timer.start({ label: j?.title || el.querySelector('#tl').value.trim() || 'Trabajo', kind: 'trabajo', job: jid, source: j?.source || '' }); toast('▶ En marcha: lo ves arriba en todas las apps'); }
+      if (a === 'pause') timer.pause();
+      if (a === 'resume') timer.resume();
+      if (a === 'stop') { const l = timer.stop(); if (l) toast(`Guardado ${fmt.hours(l.minutes)}`); }
     };
   } };
 
@@ -301,4 +376,4 @@ const QUICK = [
   { label: 'Nuevo cliente', icon: '🤝', color: '#A06CFF', run: () => openForm(clientes) },
   { label: 'Registro', icon: '📒', color: '#00C2B2', run: (api) => api.go('registro') },
 ];
-boot({ appId: 'negocios', version: VERSION, home, quick: QUICK, modules: [cotizador, registro, trabajos, clientes, cobros, prospectos, cronometro, servicios, combos, fuentes] });
+boot({ appId: 'negocios', version: VERSION, home, quick: QUICK, modules: [cotizador, fuentes, registro, trabajos, clientes, cobros, cronometro, calculadora, prospectos, servicios, combos] });

@@ -1,27 +1,17 @@
 // NEXO Finanzas · tu plata
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
 import { estado, grafica, P10_CSS, SEMA } from '../../core/plan10m.js';
+import { fx, money, balances } from '../../core/fx.js';
+import { registrar, accIcon } from './registrar.js';
 { const st = document.createElement('style'); st.textContent = P10_CSS; document.head.appendChild(st); }
 
-const VERSION = '1.1.0';
+const VERSION = '2.0.0';
 const month = () => fmt.today().slice(0, 7);
 const sum = (arr) => arr.reduce((a, t) => a + (Number(t.amount) || 0), 0);
 const txMonth = (m = month()) => store.list('transactions').filter((t) => (t.date || '').startsWith(m));
 
-export function balances() {
-  const tx = store.list('transactions');
-  return store.list('accounts').map((a) => {
-    let b = Number(a.initial) || 0;
-    for (const t of tx) {
-      const v = Number(t.amount) || 0;
-      if (t.type === 'ingreso' && t.account === a.id) b += v;
-      if (t.type === 'gasto' && t.account === a.id) b -= v;
-      if (t.type === 'traslado') { if (t.account === a.id) b -= v; if (t.toAccount === a.id) b += v; }
-    }
-    return { ...a, balance: b };
-  });
-}
-const monthlySub = (s) => (s.cycle === 'año' ? s.amount / 12 : s.cycle === 'semana' ? s.amount * 4.33 : s.amount) || 0;
+const subCOP = (s) => fx.toCOP(s.amount, s.currency || 'COP');
+const monthlySub = (s) => (s.cycle === 'año' ? subCOP(s) / 12 : s.cycle === 'semana' ? subCOP(s) * 4.33 : subCOP(s)) || 0;
 function autoAlerts() {
   const out = [];
   const spent = {}; txMonth().filter((t) => t.type === 'gasto').forEach((t) => (spent[t.category] = (spent[t.category] || 0) + (+t.amount || 0)));
@@ -34,7 +24,7 @@ function autoAlerts() {
   for (const s of store.list('subscriptions')) {
     if (!s.nextDate) continue;
     const d = Math.round((new Date(s.nextDate + 'T12:00') - new Date(today + 'T12:00')) / 864e5);
-    if (d >= 0 && d <= 3) out.push(['s-pending', `${s.name}: pago de ${fmt.money(s.amount)} ${d === 0 ? 'hoy' : `en ${d} días`}`]);
+    if (d >= 0 && d <= 3) out.push(['s-pending', `${s.name}: renueva ${d === 0 ? 'hoy' : `en ${d} días`} · ${money(s.amount, s.currency || 'COP')}${store.get('accounts', s.account) ? ' con ' + store.get('accounts', s.account).name : ''}`]);
     if (d < 0) out.push(['s-delete', `${s.name}: el pago venció hace ${-d} días`]);
   }
   for (const a of balances()) if (a.balance < 0) out.push(['s-delete', `La cuenta ${a.name} está en negativo (${fmt.money(a.balance)})`]);
@@ -49,8 +39,9 @@ const movimientos = fromSchema('transactions', { id: 'movimientos', title: 'Movi
   sort: (a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''),
   itemIcon: (r) => (r.type === 'ingreso' ? '🟢' : r.type === 'gasto' ? '🔴' : '🔵'),
   titleOf: (r) => r.title,
-  subOf: (r) => [fmt.date(r.date), r.category, store.get('accounts', r.account)?.name].filter(Boolean).map(esc).join(' · '),
-  sideOf: (r) => `<span class="${r.type === 'ingreso' ? 'up' : r.type === 'gasto' ? 'down' : ''}">${r.type === 'ingreso' ? '+' : r.type === 'gasto' ? '−' : '⇄'}${fmt.money(r.amount)}</span>`,
+  subOf: (r) => [fmt.date(r.date), r.category, store.get('accounts', r.account)?.name, r.type === 'traslado' ? '→ ' + (store.get('accounts', r.toAccount)?.name || '') : ''].filter(Boolean).map(esc).join(' · '),
+  sideOf: (r) => `<span class="${r.type === 'ingreso' ? 'up' : r.type === 'gasto' ? 'down' : ''}">${r.type === 'ingreso' ? '+' : r.type === 'gasto' ? '−' : '⇄'}${r.currency && r.currency !== 'COP' ? money(r.amountCur, r.currency) + '<small class="muted" style="display:block;text-align:right;font-weight:400">≈ ' + fmt.money(r.amount) + '</small>' : fmt.money(r.amount)}</span>`,
+  onAdd: () => registrar('gasto'), onOpen: (r) => registrar(r.type, r),
   render(el, api) {
     const m = txMonth();
     el.innerHTML = `<div class="quick row" style="margin-bottom:12px">
@@ -59,17 +50,35 @@ const movimientos = fromSchema('transactions', { id: 'movimientos', title: 'Movi
       <p class="muted num" style="margin:0 0 10px">Este mes: <span class="up">+${fmt.money(sum(m.filter((t) => t.type === 'ingreso')))}</span> · <span class="down">−${fmt.money(sum(m.filter((t) => t.type === 'gasto')))}</span></p><div id="tl"></div>`;
     api.renderList(el.querySelector('#tl'), { ...movimientos, render: null });
     el.querySelector('.tabs').onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) { txTab = b.dataset.t; api.paint(); } };
-    el.querySelector('.quick').onclick = (e) => { const b = e.target.closest('[data-new]'); if (b) openForm(movimientos, null, { type: b.dataset.new, account: store.list('accounts')[0]?.id || '' }); };
+    el.querySelector('.quick').onclick = (e) => { const b = e.target.closest('[data-new]'); if (b) registrar(b.dataset.new); };
   } });
 
 // ---------- Cuentas y bolsillos ----------
-const cuentas = fromSchema('accounts', { id: 'cuentas', title: 'Cuentas', icon: '👛', single: 'cuenta',
+const cuentas = fromSchema('accounts', { id: 'cuentas', title: 'Cuentas', icon: '👛', single: 'cuenta o tarjeta',
   render(el) {
-    const bs = balances();
-    if (!bs.length) { el.innerHTML = '<div class="empty"><b>Crea tus bolsillos</b>Uno personal y uno por cada negocio (agencia, videos, NEXO PC). Así sabes qué plata es de qué.</div>'; return; }
-    el.innerHTML = `<div class="grid">${bs.map((a) => `<button class="card acc" data-id="${a.id}" style="--k:${esc(a.color || 'var(--accent)')}"><span class="chip">${esc(a.kind || '')}</span><b>${esc(a.name)}</b><span class="v num ${a.balance < 0 ? 'down' : ''}">${fmt.money(a.balance)}</span></button>`).join('')}</div>
-      <p class="muted num" style="margin-top:12px">Total: <b style="color:var(--fg)">${fmt.money(bs.reduce((x, a) => x + a.balance, 0))}</b></p>`;
-    el.onclick = (e) => { const c = e.target.closest('.acc'); if (c) openForm(cuentas, store.get('accounts', c.dataset.id)); };
+    const bs = balances(); const r = fx.get();
+    el.innerHTML = `${bs.length ? `<div class="grid">${bs.map((a) => `<button class="card acc" data-id="${a.id}" style="--k:${esc(a.color || 'var(--accent)')}"><span class="chip">${accIcon(a)} ${esc(a.kind || 'Cuenta')}${a.currency !== 'COP' ? ' · ' + a.currency : ''}</span><b>${esc(a.name)}</b><span class="v num ${a.native < 0 ? 'down' : ''}">${money(a.native, a.currency)}</span>${a.currency !== 'COP' ? `<span class="muted num" style="font-size:13px">≈ ${fmt.money(a.balance)}</span>` : ''}</button>`).join('')}</div>
+      <p class="muted num" style="margin-top:12px">Total en pesos: <b style="color:var(--fg)">${fmt.money(bs.reduce((x, a) => x + a.balance, 0))}</b></p>`
+      : '<div class="empty"><b>Agrega tus cuentas y tarjetas</b>Efectivo, Nequi, tu banco, tarjetas… también en dólares o euros.</div>'}
+      <button class="btn btn-create ghost" data-a="add" style="width:100%;margin-top:6px">＋ Agregar cuenta o tarjeta</button>
+      <div class="card section fxc"><h3>💱 Tasas de cambio</h3>
+        <div class="row num" style="gap:14px"><span>1 USD = <b>${fmt.money(r.USD)}</b></span><span>1 EUR = <b>${fmt.money(r.EUR)}</b></span></div>
+        <p class="muted" style="font-size:12px;margin:6px 0 10px">${r.auto === false ? '✎ Puestas a mano' : 'Automáticas'}${r.updated ? ' · ' + fmt.date(r.updated.slice(0, 10)) : ''}</p>
+        <div class="row"><button class="btn btn-edit ghost sm" data-a="fxedit">✎ Corregir</button>${r.auto === false ? '<button class="btn btn-cancel sm" data-a="fxauto">Volver a automático</button>' : ''}</div></div>`;
+    el.onclick = async (e) => {
+      const c = e.target.closest('.acc'); if (c) return openForm(cuentas, store.get('accounts', c.dataset.id));
+      const a = e.target.closest('[data-a]')?.dataset.a;
+      if (a === 'add') openForm(cuentas, null, { currency: 'COP', kind: 'Billetera digital' });
+      if (a === 'fxauto') { fx.set({ auto: true, updated: '' }); await fx.refresh(true); toast('Tasas automáticas'); }
+      if (a === 'fxedit') {
+        const f = h(`<form class="form"><div class="field"><label for="fu">1 USD en pesos</label><input id="fu" type="number" inputmode="numeric" value="${r.USD}"></div>
+          <div class="field"><label for="fe">1 EUR en pesos</label><input id="fe" type="number" inputmode="numeric" value="${r.EUR}"></div>
+          <p class="muted" style="font-size:13px;margin:0">Úsalo si tu banco o casa de cambio te da otra tasa. Los movimientos ya guardados no cambian.</p>
+          <div class="row end"><button class="btn btn-edit">✓ Guardar tasas</button></div></form>`);
+        const sh = sheet('Corregir tasas', f);
+        f.addEventListener('submit', (ev) => { ev.preventDefault(); fx.set({ USD: Number(f.fu.value) || r.USD, EUR: Number(f.fe.value) || r.EUR, auto: false, source: 'manual' }); toast('Tasas guardadas'); sh.close(); });
+      }
+    };
   } });
 
 // ---------- Presupuesto ----------
@@ -85,18 +94,25 @@ const presupuesto = fromSchema('budgets', { id: 'presupuesto', title: 'Presupues
   } });
 
 // ---------- Metas de ahorro ----------
-const ahorro = fromSchema('savings', { id: 'ahorro', title: 'Ahorro', icon: '🐷', single: 'meta de ahorro',
+const ahorro = fromSchema('savings', { id: 'ahorro', title: 'Bolsillos', icon: '🐷', single: 'bolsillo',
   render(el) {
     const ss = store.list('savings');
-    if (!ss.length) { el.innerHTML = '<div class="empty"><b>Crea tu meta: Abrir NEXO PC</b>Pon el valor total y una fecha. Te digo cuánto ahorrar por mes.</div>'; return; }
-    el.innerHTML = `<div class="grid">${ss.map((s) => { const p = Math.min(100, Math.round(((s.saved || 0) / (s.target || 1)) * 100));
+    if (!ss.length) { el.innerHTML = '<div class="empty"><b>Crea tu meta: Abrir NEXO PC</b>Pon el valor total y una fecha. Te digo cuánto ahorrar por mes. También puedes llevar tu 🪙 alcancía de monedas.</div>'; }
+    if (ss.length) el.innerHTML = `<div class="grid">${ss.map((s) => { const p = Math.min(100, Math.round(((s.saved || 0) / (s.target || 1)) * 100));
       const monthsLeft = s.due ? Math.max(1, Math.round((new Date(s.due) - new Date()) / (30.4 * 864e5))) : null;
       const perMonth = monthsLeft ? Math.ceil(Math.max(0, s.target - (s.saved || 0)) / monthsLeft) : null;
+      if (s.kind === 'alcancia' || s.kind === 'bolsillo') return `<div class="card sav"><div class="ring" style="--p:${s.target ? p : 100}"><span style="font-size:26px">${s.kind === 'alcancia' ? '🪙' : '👝'}</span></div>
+        <div><b>${esc(s.name)}</b><div class="num" style="font:700 22px var(--display)">${fmt.money(s.saved || 0)}${s.target ? ` <span class="muted" style="font-size:13px;font-weight:500">de ${fmt.money(s.target)}</span>` : ''}</div>
+        <div class="row" style="margin-top:8px">${(s.kind === 'alcancia' ? [200, 500, 1000, 2000] : [5000, 10000, 20000]).map((v) => `<button class="btn btn-create ghost sm" data-coin="${s.id}" data-v="${v}">+${v >= 1000 ? v / 1000 + 'k' : v}</button>`).join('')}<button class="btn btn-edit ghost sm" data-ed="${s.id}">✎</button></div></div></div>`;
       return `<div class="card sav"><div class="ring" style="--p:${p}"><span class="num">${p}%</span></div>
         <div><b>${esc(s.name)}</b><div class="num">${fmt.money(s.saved || 0)} <span class="muted">de ${fmt.money(s.target)}</span></div>
         ${perMonth ? `<div class="muted" style="font-size:13px">Necesitas <b style="color:var(--fg)">${fmt.money(perMonth)}/mes</b> por ${monthsLeft} meses</div>` : ''}
         <div class="row" style="margin-top:8px"><button class="btn btn-create sm" data-dep="${s.id}">＋ Abonar</button><button class="btn btn-edit ghost sm" data-ed="${s.id}">Editar</button></div></div></div>`; }).join('')}</div>`;
+    el.insertAdjacentHTML('afterbegin', `<div class="row" style="margin-bottom:12px"><button class="btn btn-create ghost sm" data-newk="meta">＋ Meta</button><button class="btn btn-create ghost sm" data-newk="alcancia">＋ 🪙 Alcancía</button><button class="btn btn-create ghost sm" data-newk="bolsillo">＋ 👝 Bolsillo</button></div>`);
     el.onclick = (e) => {
+      const nk = e.target.closest('[data-newk]'); if (nk) return openForm(ahorro, null, { kind: nk.dataset.newk, name: nk.dataset.newk === 'alcancia' ? 'Alcancía de monedas' : '' });
+      const coin = e.target.closest('[data-coin]');
+      if (coin) { const s = store.get('savings', coin.dataset.coin); const v = Number(coin.dataset.v); store.update('savings', s.id, { saved: (Number(s.saved) || 0) + v }); navigator.vibrate?.(8); toast(`+${fmt.money(v)} a ${s.name}`); return; }
       const ed = e.target.closest('[data-ed]'); if (ed) return openForm(ahorro, store.get('savings', ed.dataset.ed));
       const d = e.target.closest('[data-dep]'); if (!d) return;
       const s = store.get('savings', d.dataset.dep);
@@ -110,9 +126,11 @@ const ahorro = fromSchema('savings', { id: 'ahorro', title: 'Ahorro', icon: '�
   } });
 
 // ---------- Suscripciones ----------
-const suscripciones = fromSchema('subscriptions', { id: 'suscripciones', title: 'Pagos fijos', icon: '🔁', single: 'pago fijo',
+const suscripciones = fromSchema('subscriptions', { id: 'suscripciones', title: 'Suscripciones', icon: '🔁', single: 'suscripción',
   sort: (a, b) => (a.nextDate || '9').localeCompare(b.nextDate || '9'),
-  titleOf: (r) => r.name, subOf: (r) => `cada ${esc(r.cycle || 'mes')}${r.nextDate ? ' · próximo ' + fmt.date(r.nextDate) : ''}`, sideOf: (r) => fmt.money(r.amount),
+  titleOf: (r) => r.name,
+  subOf: (r) => { const a = store.get('accounts', r.account); return `cada ${esc(r.cycle || 'mes')}${r.nextDate ? ' · renueva ' + fmt.date(r.nextDate) : ''}${a ? ' · ' + accIcon(a) + ' ' + esc(a.name) : ' · <span class="down">¿con qué se paga?</span>'}`; },
+  sideOf: (r) => `${money(r.amount, r.currency || 'COP')}${r.currency && r.currency !== 'COP' ? `<small class="muted" style="display:block;text-align:right;font-weight:400">≈ ${fmt.money(subCOP(r))}</small>` : ''}`,
   headerExtra: () => `<span class="chip s-pending num">${fmt.money(store.list('subscriptions').reduce((a, s) => a + monthlySub(s), 0))}/mes</span>` });
 
 // ---------- Alertas ----------
@@ -201,7 +219,7 @@ function home(el) {
   const total = bs.reduce((a, b) => a + b.balance, 0);
   const m = txMonth();
   const inc = sum(m.filter((t) => t.type === 'ingreso')), out = sum(m.filter((t) => t.type === 'gasto'));
-  const nexo = store.list('savings').find((s) => /nexo/i.test(s.name)) || store.list('savings')[0];
+  const nexo = store.list('savings').find((s) => /nexo/i.test(s.name)) || store.list('savings').find((s) => !s.kind || s.kind === 'meta');
   const alerts = autoAlerts().slice(0, 3);
   const last = store.list('transactions').sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
   el.innerHTML = metaCard() + `<div class="hero card" style="margin-top:12px"><span class="muted">Tienes en total</span><div class="big num">${fmt.money(total)}</div>
@@ -210,16 +228,17 @@ function home(el) {
     ${alerts.length ? `<div class="list section">${alerts.map(([c, t]) => `<div class="list-item" style="cursor:default"><span class="chip ${c}">!</span><div class="li-main" style="white-space:normal;font-size:14px">${esc(t)}</div></div>`).join('')}</div>` : ''}
     <div class="grid section">
       ${nexo ? `<div class="card"><h3>🐷 ${esc(nexo.name)}</h3><div class="num"><b>${fmt.money(nexo.saved || 0)}</b> <span class="muted">de ${fmt.money(nexo.target)}</span></div><div class="bar" style="margin-top:10px"><i style="width:${Math.min(100, ((nexo.saved || 0) / (nexo.target || 1)) * 100)}%"></i></div></div>` : '<div class="card"><h3>🐷 Meta NEXO PC</h3><p class="muted" style="margin:0">Créala en Ahorro para ver tu avance aquí.</p></div>'}
-      <div class="card"><h3>👛 Bolsillos</h3>${bs.map((a) => `<div class="row" style="justify-content:space-between;padding:3px 0"><span>${esc(a.name)}</span><b class="num ${a.balance < 0 ? 'down' : ''}">${fmt.money(a.balance)}</b></div>`).join('') || '<p class="muted" style="margin:0">Crea tus cuentas en 👛 Cuentas</p>'}</div>
+      <div class="card"><h3>👛 Cuentas</h3>${bs.map((a) => `<div class="row" style="justify-content:space-between;padding:3px 0"><span>${accIcon(a)} ${esc(a.name)}</span><b class="num ${a.native < 0 ? 'down' : ''}">${money(a.native, a.currency)}</b></div>`).join('') || '<p class="muted" style="margin:0">Crea tus cuentas en 👛 Cuentas</p>'}<button class="btn btn-create ghost sm" data-a="newacc" style="margin-top:8px">＋ Cuenta o tarjeta</button></div>
       <div class="card"><h3>🕒 Últimos movimientos</h3>${last.map((t) => `<div class="row" style="justify-content:space-between;padding:3px 0;flex-wrap:nowrap"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</span><b class="num ${t.type === 'ingreso' ? 'up' : t.type === 'gasto' ? 'down' : ''}">${fmt.money(t.amount)}</b></div>`).join('') || '<p class="muted" style="margin:0">Sin movimientos</p>'}</div>
     </div>`;
-  el.onclick = (e) => { const b = e.target.closest('[data-new]'); if (b) openForm(movimientos, null, { type: b.dataset.new, account: store.list('accounts')[0]?.id || '' }); };
+  el.onclick = (e) => { const b = e.target.closest('[data-new]'); if (b) registrar(b.dataset.new); if (e.target.closest('[data-a=newacc]')) openForm(cuentas, null, { currency: 'COP', kind: 'Billetera digital' }); };
 }
 
 const QUICK = [
-  { label: 'Ingreso', icon: '＋', color: '#1CE783', run: () => openForm(movimientos, null, { type: 'ingreso', account: store.list('accounts')[0]?.id || '' }) },
-  { label: 'Gasto', icon: '−', color: '#FF4D4D', run: () => openForm(movimientos, null, { type: 'gasto', account: store.list('accounts')[0]?.id || '' }) },
-  { label: 'Mover plata', icon: '⇄', color: '#7C5CFF', run: () => openForm(movimientos, null, { type: 'traslado', account: store.list('accounts')[0]?.id || '' }) },
+  { label: 'Gasto', icon: '−', color: '#FF4D4D', run: () => registrar('gasto') },
+  { label: 'Ingreso', icon: '＋', color: '#1CE783', run: () => registrar('ingreso') },
+  { label: 'Mover plata', icon: '⇄', color: '#7C5CFF', run: () => registrar('traslado') },
   { label: 'Meta $10M', icon: '🎯', color: '#FFFFFF', run: (api) => api.go('meta') },
 ];
+fx.refresh().catch(() => {});
 boot({ appId: 'finanzas', version: VERSION, home, quick: QUICK, modules: [movimientos, metaVentas, cuentas, presupuesto, ahorro, suscripciones, alertas, reportes, libertad] });

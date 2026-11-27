@@ -9,13 +9,16 @@ export const SCHEMA = {
   // ---------- NEXO Finanzas ----------
   accounts: { app: 'finanzas', label: 'Cuentas y bolsillos', fields: [
     { k: 'name', label: 'Nombre', required: true, ph: 'Personal, Nequi, NEXO PC…' },
-    { k: 'kind', label: 'Tipo', type: 'select', options: ['Personal', 'Negocio', 'Ahorro', 'Efectivo'] },
-    { k: 'initial', label: 'Saldo inicial', type: 'money', default: 0 }, { k: 'color', label: 'Color', type: 'color' },
+    { k: 'kind', label: 'Tipo', type: 'select', options: ['Personal', 'Negocio', 'Ahorro', 'Efectivo', 'Tarjeta de crédito', 'Tarjeta débito', 'Billetera digital'] },
+    { k: 'currency', label: 'Moneda', type: 'select', options: ['COP', 'USD', 'EUR'], default: 'COP' },
+    { k: 'initial', label: 'Saldo inicial (en su moneda)', type: 'number', default: 0 }, { k: 'color', label: 'Color', type: 'color' },
   ] },
   transactions: { app: 'finanzas', label: 'Ingresos y gastos', fields: [
     { k: 'type', label: 'Tipo', type: 'select', options: [['gasto', '🔴 Gasto'], ['ingreso', '🟢 Ingreso'], ['traslado', '🔵 Traslado entre cuentas']], default: 'gasto' },
-    { k: 'amount', label: 'Valor', type: 'money', required: true }, { k: 'title', label: 'Concepto', required: true },
-    { k: 'category', label: 'Categoría', type: 'select', options: ['Comida', 'Transporte', 'Estudio', 'Herramientas', 'Equipos', 'Publicidad', 'Servicios', 'Ocio', 'Salud', 'Familia', 'Cliente', 'Salario tienda', 'Otro'] },
+    { k: 'amount', label: 'Valor en pesos', type: 'money', required: true }, { k: 'title', label: 'Concepto', required: true },
+    { k: 'currency', label: 'Moneda original', type: 'select', options: ['COP', 'USD', 'EUR'], default: 'COP' },
+    { k: 'amountCur', label: 'Valor en la moneda original', type: 'number' },
+    { k: 'category', label: 'Categoría', type: 'select', options: ['Comida', 'Transporte', 'Datos', 'Estudio', 'Herramientas', 'Equipos', 'Publicidad', 'Servicios', 'Suscripciones', 'Ocio', 'Salud', 'Familia', 'Cliente', 'Anticipo', 'Venta', 'Salario tienda', 'Regalo', 'Alcancía', 'Otro'] },
     { k: 'account', label: 'Cuenta', type: 'ref', ref: 'accounts' }, { k: 'toAccount', label: 'Hacia (solo traslados)', type: 'ref', ref: 'accounts' },
     { k: 'date', label: 'Fecha', type: 'date', today: true }, { k: 'job', label: 'Trabajo relacionado', type: 'ref', ref: 'jobs', refLabel: 'title' },
   ] },
@@ -24,13 +27,15 @@ export const SCHEMA = {
   ] },
   savings: { app: 'finanzas', label: 'Metas de ahorro', fields: [
     { k: 'name', label: 'Meta', required: true, ph: 'Abrir NEXO PC' }, { k: 'target', label: 'Valor objetivo', type: 'money', required: true },
+    { k: 'kind', label: 'Tipo', type: 'select', options: [['meta', '🎯 Meta con fecha'], ['alcancia', '🪙 Alcancía de monedas'], ['bolsillo', '👝 Bolsillo libre']], default: 'meta' },
     { k: 'saved', label: 'Ahorrado', type: 'money', default: 0 }, { k: 'due', label: 'Fecha objetivo', type: 'date' },
     { k: 'account', label: 'Cuenta donde se guarda', type: 'ref', ref: 'accounts' },
   ] },
   subscriptions: { app: 'finanzas', label: 'Suscripciones y pagos fijos', fields: [
-    { k: 'name', label: 'Nombre', required: true, ph: 'Filmora, Claude, internet…' }, { k: 'amount', label: 'Valor', type: 'money', required: true },
+    { k: 'name', label: 'Nombre', required: true, ph: 'Filmora, Claude, internet…' }, { k: 'amount', label: 'Valor', type: 'number', required: true },
+    { k: 'currency', label: 'Moneda', type: 'select', options: ['COP', 'USD', 'EUR'], default: 'COP' },
     { k: 'cycle', label: 'Cada', type: 'select', options: [['mes', 'Mes'], ['año', 'Año'], ['semana', 'Semana']] },
-    { k: 'nextDate', label: 'Próximo pago', type: 'date' }, { k: 'account', label: 'Cuenta', type: 'ref', ref: 'accounts' },
+    { k: 'nextDate', label: 'Próxima renovación', type: 'date' }, { k: 'account', label: 'Se paga con (cuenta o tarjeta)', type: 'ref', ref: 'accounts' },
   ] },
   alerts: { app: 'finanzas', label: 'Alertas personalizadas', fields: [
     { k: 'title', label: 'Alerta', required: true, ph: 'Avisar si gasto más de $50.000 en ocio' }, { k: 'active', label: 'Activa', type: 'check', default: true },
@@ -40,6 +45,8 @@ export const SCHEMA = {
   sources: { app: 'negocios', label: 'Marcas / fuentes de ingreso', fields: [
     { k: 'name', label: 'Marca o fuente', required: true, ph: 'NEXO PC, Agencia, Marca personal…' }, { k: 'color', label: 'Color', type: 'color' },
     { k: 'lema', label: 'Lema' }, { k: 'cliente', label: 'Cliente ideal' },
+    { k: 'estado', label: 'Estado', type: 'select', options: [['activa', '🟢 Activa'], ['pausada', '⏸ Pausada'], ['futura', '📅 Empieza en una fecha']], default: 'activa' },
+    { k: 'inicio', label: 'Empieza (si es futura)', type: 'date' }, { k: 'metaMes', label: 'Meta de ingresos al mes', type: 'money' },
     { k: 'account', label: 'Cuenta de Finanzas', type: 'ref', ref: 'accounts' },
   ] },
   services: { app: 'negocios', label: 'Catálogo de servicios', fields: [
@@ -47,6 +54,7 @@ export const SCHEMA = {
     { k: 'plan', label: 'Plan', type: 'select', options: ['Básico', 'Pro', 'Premium', 'Esencial', 'Completo', 'Élite', 'Único'] },
     { k: 'price', label: 'Precio', type: 'money', required: true }, { k: 'monthly', label: 'Mensualidad (si aplica)', type: 'money' },
     { k: 'mensual', label: 'Es un servicio mensual', type: 'check' }, { k: 'hours', label: 'Horas estimadas', type: 'number' },
+    { k: 'costos', label: 'Costos por trabajo (datos, transporte, materiales…)', type: 'money' },
     { k: 'anticipo', label: 'Anticipo %', type: 'number', default: 50 },
     { k: 'desc', label: 'Qué incluye', type: 'textarea' }, { k: 'noIncluye', label: 'No incluye', type: 'textarea' },
   ] },
@@ -77,7 +85,8 @@ export const SCHEMA = {
   ] },
   timeLogs: { app: 'negocios', label: 'Tiempo trabajado (cronómetro)', fields: [
     { k: 'job', label: 'Trabajo', type: 'ref', ref: 'jobs', refLabel: 'title' }, { k: 'minutes', label: 'Minutos', type: 'number', required: true },
-    { k: 'date', label: 'Fecha', type: 'date', today: true },
+    { k: 'date', label: 'Fecha', type: 'date', today: true }, { k: 'label', label: 'Qué hiciste' },
+    { k: 'kind', label: 'Tipo', type: 'select', options: [['trabajo', 'Trabajo'], ['estudio', 'Estudio'], ['otro', 'Otro']], default: 'trabajo' },
   ] },
   invoices: { app: 'negocios', label: 'Cobros y cuentas de cobro', fields: [
     { k: 'number', label: 'N.º', ph: 'CC-001' }, { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' },

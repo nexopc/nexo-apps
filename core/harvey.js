@@ -216,7 +216,7 @@ async function makeTools(ui) {
         const hm = /^\d{2}:\d{2}$/;
         const clean = bloques.filter((b) => b && hm.test(b.start) && hm.test(b.end) && b.title).map((b) => ({ s: b.start, e: b.end, title: String(b.title), cat: NCATS[b.cat] ? b.cat : 'trabajo', fixed: !!b.fijo })).sort((a, b) => a.s.localeCompare(b.s));
         if (!clean.length) throw new Error('Ningún bloque tiene start/end HH:MM y title');
-        const before = (planDay(fecha) || []).map((b) => `${b.s}-${b.e} ${b.title}`);
+        const before = dayBlocks(fecha).map((b) => `${b.start}-${b.end} ${b.title}`);
         const after = clean.map((b) => `${b.s}-${b.e} ${b.title}`);
         const removed = before.filter((x) => !after.includes(x)).map((x) => '− ' + x);
         const added = after.filter((x) => !before.includes(x)).map((x) => '+ ' + x);

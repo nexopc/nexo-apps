@@ -52,3 +52,9 @@ Acento rosa `#FF4F9A`, tema oscuro, mismo tamaño que los bocetos (`studio-estil
 - **Color por cliente** (el mismo de Negocios): línea de metro, calendario y Hoy.
 - **PC**: árbol a la izquierda + plano abierto a la derecha con el mapa grande para arrastrar con el mouse.
 - **Numeración estilo claqueta**: Escena 1 · Plano A · Toma 2 (se reordena sola al mover).
+
+## Detalles (ronda 5, última)
+- **Video**: solo el nombre es obligatorio.
+- **Fotos** (lugares y referencias): en Supabase Storage, bucket privado por usuario (RLS `auth.uid()`), comprimidas en el dispositivo (~1280 px, JPG).
+- **Números**: videos entregados del mes (por cliente y total), horas por video (guion + grabar + editar), lo que mejor funciona (etiquetas/tipos con más vistas), ideas usadas.
+- **Misiones de Studio** (mismo motor `core/misiones.js`): terminar guion, editar lo que se entrega pronto, preparar grabación, anotar resultados; entran en ⚡ Organizar.

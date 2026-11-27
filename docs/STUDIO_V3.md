@@ -64,3 +64,10 @@ Acento rosa `#FF4F9A`, tema oscuro, mismo tamaño que los bocetos (`studio-estil
 - **Guion = esquema libre**: ＋ Escena, ＋ Plano, ＋ 🧍 Diálogo, 📷 Cámara, 🗺 Mapa, 🔤 Texto, 📝 Nota en el orden que quiera, **sin llenar nada**; todo se escribe ahí mismo (nombre de escena, quién habla, qué dice…) cuando lo sepa. ⋮ en cada cosa: subir, bajar, duplicar, borrar (con deshacer); en plano también tipo/segundos/movimiento; en escena lugar/fecha.
 - **Mapa por plano**: cada plano puede tener su mapa (y usar el mapa base del lugar como punto de partida).
 - Modelo: el plano guarda sus elementos en `items` en orden (`persona`, `camara`, `mapa`, `pantalla`, `nota`); los planos viejos se convierten solos.
+
+## Studio 3.2 — hoja de rodaje (27 nov 2026, inspirada en el diseño que mandó Cristóbal)
+- **Nuevo video**: título opcional, cliente (＋ nuevo), **Red** (9:16 TikTok/Reels · 16:9 YouTube · 1:1 · 4:5), **Objetivo** (Vender, Enseñar, Entretener, Confianza) y botón "＋ Crear hoja de rodaje".
+- **Pantalla del video**: contadores (escenas · personas · planos · segundos), pestañas grandes **✍ Escribir** y **🎬 Grabar** (+ Editar y Entregar), fila resumen "Cliente · 9:16 · Objetivo" (abre los datos), pasos Idea → Publicado, fechas 📅 Grabación (va a NEXO PLAN como cita si las escenas no tienen fecha) y 🟠 Entrega.
+- **Escena**: "ESC 1" + nombre opcional, 4 selectores (Interior/Exterior · momento · ambiente · luz), "＋ Detalles" (lugar exacto o guardado, fecha y hora, sonido, música, nota de Filmora, utilería, vestuario, qué prepara el cliente).
+- **Filas de colores** en el orden que quiera, sin llenar nada: 🟧 Persona (quién + qué dice, 🎙), 🟦 Plano (tipo, segundos, qué se ve, 🗺 mapa propio), 🟥 Cámara (dónde se ubica + qué mira); "⋯" para 🔤 texto en pantalla y 📝 nota. ⋮ por fila: subir, bajar, duplicar, borrar (deshacer).
+- Se conserva todo lo anterior (gancho, llamado, música, editar, entregar, plan del mes, lugares, números). Internamente las filas se guardan como planos con items (lo de antes de la primera fila Plano va en un plano "auto").

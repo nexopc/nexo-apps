@@ -1,7 +1,7 @@
 // NEXO Studio 3 · videos de clientes — diseño acordado en docs/STUDIO_V3.md
 // Inicio: 🎙 idea por voz + 📍 lo que se graba hoy (por lugar) + 🎬 videos con su línea de metro.
 import { boot, fromSchema, store, fmt, esc, h, toast, sheet, confirmSheet, openForm } from '../../core/shell.js';
-import { EST, estIdx, colorCli, cname, iniciales, escenas, lugarName, claq, tipoL, editarArbol, horas, mesDe, TAGS, migrar } from './datos.js';
+import { RED, OBJ, EST, estIdx, colorCli, cname, iniciales, escenas, lugarName, claq, tipoL, editarArbol, horas, mesDe, TAGS, migrar } from './datos.js';
 import { videoPage, abrirVideo, metroHtml, dictar } from './guion.js';
 import { grabarMod, grupos, abrirGrabacion } from './grabar.js';
 import { compartirPlan } from './pdfs.js';
@@ -9,7 +9,7 @@ import { mapaEditor } from './mapa.js';
 import { crearCliente, clientesMod } from './clientes.js';
 import { subirFoto, pintarFotos, borrarFoto } from '../../core/fotos.js';
 
-const VERSION = '3.1.0';
+const VERSION = '3.2.0';
 let API = null;
 
 // ---------- 🎙 idea por voz ----------
@@ -28,16 +28,19 @@ function ideaRapida({ auto = false } = {}) {
 }
 function nuevoVideo({ title = '', idea = null, client = '' } = {}) {
   const cs = store.list('clients');
-  const f = h(`<form class="form" novalidate><div class="field"><label for="nv">Nombre del video</label><input id="nv" value="${esc(title)}" placeholder="Reel promo diciembre"></div>
+  const f = h(`<form class="form nvf" novalidate><input id="nv" class="nvt" value="${esc(title)}" placeholder="Título del video (opcional)" autocomplete="off">
     <div class="field"><label>Cliente</label><div class="picks"><button type="button" class="pick sm ${client ? '' : 'on'}" data-c="">NEXO PC / propio</button>${cs.map((c) => `<button type="button" class="pick sm ${c.id === client ? 'on' : ''}" data-c="${c.id}" style="--k:${esc(colorCli(c.id))}"><i class="cdot" style="background:var(--k)"></i>${esc(c.name)}</button>`).join('')}<button type="button" class="pick sm add" data-a="ncli">＋ Cliente nuevo</button></div></div>
-    <div class="field"><label for="nd">Entrega (opcional)</label><input id="nd" type="date"></div>
-    <div class="row end"><button class="btn btn-create">＋ Crear y armar el guion</button></div></form>`);
-  const s = sheet('🎬 Nuevo video', f); let cli = client;
+    <div class="field"><label>Red</label><div class="picks">${RED.map(([k, l], i) => `<button type="button" class="pick sm ${i === 0 ? 'on' : ''}" data-red="${k}">${l}</button>`).join('')}</div></div>
+    <div class="field"><label>Objetivo</label><div class="picks">${OBJ.map((o) => `<button type="button" class="pick sm" data-obj="${o}">${o}</button>`).join('')}</div></div>
+    <button class="btn btn-create nvb">＋ Crear hoja de rodaje</button></form>`);
+  const s = sheet('🎬 Nuevo video', f); let cli = client; let red = '9:16'; let obj = '';
   const pick = (b) => { cli = b.dataset.c; f.querySelectorAll('[data-c]').forEach((x) => x.classList.toggle('on', x === b)); };
   f.addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) pick(b);
+    const r = e.target.closest('[data-red]'); if (r) { red = r.dataset.red; f.querySelectorAll('[data-red]').forEach((x) => x.classList.toggle('on', x === r)); }
+    const o = e.target.closest('[data-obj]'); if (o) { obj = obj === o.dataset.obj ? '' : o.dataset.obj; f.querySelectorAll('[data-obj]').forEach((x) => x.classList.toggle('on', x.dataset.obj === obj)); }
     const n = e.target.closest('[data-a=ncli]'); if (n) crearCliente((c) => { if (!c) return; const nb = h(`<button type="button" class="pick sm" data-c="${c.id}"><i class="cdot" style="background:${esc(colorCli(c.id))}"></i>${esc(c.name)}</button>`); n.before(nb); pick(nb); }); });
-  f.addEventListener('submit', (e) => { e.preventDefault(); const t = f.querySelector('#nv').value.trim(); if (!t) return toast('Ponle nombre (lo demás es opcional)');
-    const v = store.add('videos', { title: t, client: cli, status: 'idea', due: f.querySelector('#nd').value, escenas: [], tags: idea?.tags || '', gancho: idea?.hook ? '' : '', idea: idea?.id || '' });
+  f.addEventListener('submit', (e) => { e.preventDefault(); const t = f.querySelector('#nv').value.trim();
+    const v = store.add('videos', { title: t || 'Video sin título', client: cli, status: 'idea', formato: red, meta: obj, escenas: [], tags: idea?.tags || '', idea: idea?.id || '' });
     if (idea) store.update('ideas', idea.id, { video: v.id });
     s.close(); setTimeout(() => abrirVideo(v.id, API), 280); });
   setTimeout(() => f.querySelector('#nv').focus(), 300);

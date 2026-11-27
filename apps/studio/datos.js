@@ -60,7 +60,7 @@ export function norm(p) {
 export const itemsDe = (p) => norm(p).items;
 export const personasDe = (p) => itemsDe(p).filter((i) => i.k === 'persona');
 export const camDe = (p) => itemsDe(p).find((i) => i.k === 'camara') || null;
-export const mapaDe = (p) => itemsDe(p).find((i) => i.k === 'mapa' && i.mapa?.length)?.mapa || [];
+export const mapaDe = (p) => (p.mapa?.length ? p.mapa : itemsDe(p).find((i) => i.k === 'mapa' && i.mapa?.length)?.mapa || []);
 export const pantallasDe = (p) => itemsDe(p).filter((i) => i.k === 'pantalla' && i.texto).map((i) => i.texto);
 export const notasDe = (p) => itemsDe(p).filter((i) => i.k === 'nota' && i.texto).map((i) => i.texto);
 export const tipoL = (k) => PLANT.find((x) => x.k === k)?.l || k || 'Plano';
@@ -125,3 +125,42 @@ export function listaEdicion(v) {
 }
 export const mesDe = (d = fmt.today()) => d.slice(0, 7);
 export const TAGS = ['humor', 'tutorial', 'antes/después', 'testimonio', 'tendencia', 'producto', 'detrás de cámaras'];
+
+// ---------- hoja de rodaje: la escena se ve como filas (🟧 Persona · 🟦 Plano · 🟥 Cámara · 🔤 Texto · 📝 Nota) ----------
+// Se guarda igual que antes (planos con sus items): una fila Plano abre un plano nuevo y las filas siguientes son de ese plano.
+// Las filas antes del primer Plano van en un plano "auto" que no se muestra como fila.
+export function filas(e) {
+  const out = [];
+  for (const p0 of e.planos || []) {
+    const p = norm(p0);
+    out.push({ id: p.id, k: 'plano', auto: !!p.auto, tipo: p.tipo || '', desc: p.desc || '', seg: p.seg || 0, mov: p.mov || '', mapa: mapaDe(p), tomas: p.tomas || [], grabado: !!p.grabado });
+    for (const i of p.items) if (i.k !== 'mapa') out.push({ ...i });
+  }
+  return out;
+}
+export function desdeFilas(rows) {
+  const planos = []; let cur = null;
+  const nuevo = (r = {}) => ({ id: r.id || 'auto-' + uid(), auto: !!r.auto, tipo: r.tipo || '', desc: r.desc || '', seg: Number(r.seg) || 0, mov: r.mov || '', mapa: r.mapa || [], tomas: r.tomas || [], grabado: !!r.grabado, items: [] });
+  for (const r of rows) {
+    if (r.k === 'plano') { cur = nuevo(r); planos.push(cur); continue; }
+    if (!cur) { cur = nuevo({ auto: true }); planos.push(cur); }
+    const { ...it } = r; cur.items.push(it);
+  }
+  return planos.filter((p) => !p.auto || p.items.length);
+}
+export const visibles = (rows) => rows.map((r, i) => i).filter((i) => !(rows[i].k === 'plano' && rows[i].auto));
+export function nuevaFila(k) { return k === 'plano' ? { id: uid(), k: 'plano', tipo: '', desc: '', seg: 0, mov: '', mapa: [], tomas: [], grabado: false } : nuevoItem(k); }
+export const RED = [['9:16', '9:16 TikTok/Reels'], ['16:9', '16:9 YouTube'], ['1:1', '1:1 Post'], ['4:5', '4:5 Feed']];
+export const OBJ = ['Vender', 'Enseñar', 'Entretener', 'Confianza'];
+export const SEL = {
+  io: ['Interior', 'Exterior'],
+  momento: ['Mañana', 'Mediodía', 'Tarde', 'Noche'],
+  ambiente: ['Tranquilo', 'Movido', 'Divertido', 'Elegante', 'Serio'],
+  luz: ['Natural', 'Aro de luz', 'Lámpara', 'Mixta', 'Poca luz'],
+};
+export function contar(v) {
+  const es = escenas(v); const ps = es.flatMap((e) => e.planos || []).map(norm);
+  const per = ps.flatMap((p) => p.items.filter((i) => i.k === 'persona'));
+  const nombres = new Set(per.map((i) => (i.nombre || '').trim().toLowerCase()).filter(Boolean));
+  return { escenas: es.length, personas: nombres.size || (per.length ? 1 : 0), planos: ps.filter((p) => !p.auto).length, segundos: ps.reduce((a, p) => a + (Number(p.seg) || 0), 0) };
+}

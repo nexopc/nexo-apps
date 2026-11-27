@@ -272,3 +272,27 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; text-wra
   .back-btn { padding: 0 6px 0 0; margin-right: 0; }
   [data-os="ios"] .brand > span:last-child { display: none; }   /* iPhone: se prioriza "‹ Atrás" sobre el nombre */
 }
+
+.seg.days button, .seg.scale button { min-width: 40px; min-height: 40px; padding: 6px 0; text-align: center; }
+/* Posiciones fijas en la cuadrícula: el aviso "Entra con Google" ya no empuja el contenido a la columna de la izquierda */
+.shell { grid-template-rows: auto auto 1fr; }
+.shell > .topbar { grid-row: 1; } .shell > .login-banner { grid-row: 2; align-self: start; } .shell > .main { grid-row: 3; }
+[data-os="windows"] .shell, [data-os="desktop"] .shell { grid-template-rows: auto auto 1fr; }
+[data-os="windows"] .shell > .sidebar, [data-os="desktop"] .shell > .sidebar { grid-column: 1; grid-row: 2 / 4; }
+[data-os="windows"] .shell > .login-banner, [data-os="desktop"] .shell > .login-banner { grid-column: 2; }
+[data-os="windows"] .shell > .main, [data-os="desktop"] .shell > .main { grid-column: 2; }
+@media (max-width: 760px) {
+  [data-os="windows"] .shell > .login-banner, [data-os="desktop"] .shell > .login-banner, [data-os="windows"] .shell > .main, [data-os="desktop"] .shell > .main { grid-column: 1; }
+}
+/* Botones-opción (chips grandes) compartidos por las apps */
+.picks { display: flex; flex-wrap: wrap; gap: 7px; }
+.pick { min-height: 40px; padding: 8px 13px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font: 600 14px var(--font); cursor: pointer; }
+.pick.on { background: var(--accent); border-color: var(--accent); color: #0B0F15; }
+.pick.add { border-style: dashed; color: var(--accent); background: none; }
+.pick:active { transform: scale(.96); }
+.linkish { background: none; border: 0; color: var(--c-edit); font: 600 13px var(--font); padding: 4px 0; cursor: pointer; }
+.undo-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(150px + var(--safe-b)); z-index: 95; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); box-shadow: var(--shadow); }
+
+/* espacio al final para que el último elemento nunca quede debajo de los botones flotantes */
+.main { padding-bottom: calc(220px + var(--safe-b)); }
+[data-os="windows"] .main, [data-os="desktop"] .main { padding-bottom: 120px; }

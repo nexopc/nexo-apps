@@ -1,0 +1,24 @@
+/* NEXO Plan — identidad: cian sobre azul noche, línea de tiempo clara. */
+:root { --bg: #071016; --bg2: #0A1720; --panel: #0E1D28; --panel2: #132634; --line: #1D3646; }
+:root[data-theme="light"] { --bg: #F1F7FA; --bg2: #E5F0F5; --panel: #FFFFFF; --panel2: #EDF5F8; --line: #CFE2EA; }
+body { background: radial-gradient(1100px 480px at 100% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%), var(--bg); background-attachment: fixed; }
+.daynav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.daynav .dl { flex: 1; display: grid; justify-items: center; background: none; border: 0; color: var(--fg); cursor: pointer; padding: 4px; }
+.daynav .dl b { font: 700 20px var(--display); } .daynav .dl small { color: var(--muted); font-size: 12px; }
+.daynav .btn { min-width: 44px; font-size: 20px; }
+.nowc { display: grid; gap: 2px; margin-top: 12px; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--panel)), var(--panel) 70%); }
+.nowc b { font: 700 22px var(--display); }
+.warn { margin-top: 10px; border-color: color-mix(in srgb, var(--c-pending) 60%, var(--line)); font-size: 14px; }
+.tl { display: grid; gap: 8px; }
+.blk { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c); cursor: pointer; min-width: 0; }
+.blk.now { box-shadow: 0 0 0 1.5px var(--accent); }
+.blk.done { opacity: .55; } .blk.done b { text-decoration: line-through; }
+.blk .bt { display: grid; min-width: 50px; font-weight: 700; } .blk .bt small { color: var(--muted); font-weight: 500; }
+.blk .bm { display: grid; min-width: 0; } .blk .bm b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .blk .bm span { font-size: 12.5px; }
+.week { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+.wd { display: grid; gap: 4px; align-content: start; text-align: left; padding: 10px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); cursor: pointer; min-height: 120px; min-width: 0; }
+.wd header { display: flex; justify-content: space-between; } .wd.today { border-color: var(--accent); } .wd.past { opacity: .6; }
+.wb { display: block; font-style: normal; font-size: 12px; padding: 3px 6px; border-radius: 6px; border-left: 3px solid var(--c); background: var(--panel2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb.done { opacity: .5; text-decoration: line-through; }
+.proj { text-align: left; display: grid; gap: 6px; cursor: pointer; border-top: 4px solid var(--k); }
+.linkish { background: none; border: 0; color: var(--c-edit); font: 600 13px var(--font); padding: 0; cursor: pointer; }

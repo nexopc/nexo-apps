@@ -11,7 +11,8 @@ export const FOLDERS = [
 export const LINKABLE = {
   finanzas: [['transactions', (r) => `${r.type === 'ingreso' ? '+' : r.type === 'gasto' ? '−' : '⇄'} ${fmt.money(r.amount)} · ${r.title || ''}`], ['accounts', (r) => '👛 ' + r.name], ['subscriptions', (r) => '🔁 ' + r.name], ['savings', (r) => '🐷 ' + r.name]],
   negocios: [['clients', (r) => '👤 ' + r.name], ['jobs', (r) => '🧰 ' + r.title], ['sources', (r) => '🏷 ' + r.name], ['services', (r) => `📦 ${r.name} ${r.plan || ''}`]],
-  studio: [['videos', (r) => '🎬 ' + (r.title || r.name)], ['scripts', (r) => '📄 ' + (r.title || r.name)]],
+  plan: [['tareas', (r) => '✅ ' + r.title], ['proyectos', (r) => '🚀 ' + r.name], ['bloques', (r) => '🗓 ' + r.title]],
+  studio: [['contentPlans', (r) => '🗂 Plan ' + (store.get('clients', r.client)?.name || '') + ' ' + r.month], ['clips', (r) => '🎞 ' + r.title], ['videos', (r) => '🎬 ' + (r.title || r.name)], ['scripts', (r) => '📄 ' + (r.title || r.name)]],
   aprende: [['topics', (r) => '⚛️ ' + (r.name || r.title)]],
 };
 export const linkLabel = (link) => {

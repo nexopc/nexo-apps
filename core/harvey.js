@@ -4,6 +4,9 @@
 import { balances } from './fx.js';
 import { store, prefs, fmt } from './store.js';
 import { planInfo, planDay, sendToPlan, PLAN_CATS } from './planlink.js';
+import { planSnapshot, dayBlocks, CATS as NCATS, topicNeed, topicDone } from './planner.js';
+import { avisos } from './avisos.js';
+import { timer } from './timer.js';
 import { SCHEMA, schemaForAI } from './schema.js';
 import { APPS } from './registry.js';
 
@@ -70,13 +73,15 @@ export function snapshot() {
   const counts = Object.fromEntries(COLS.map((c) => [c, store.list(c).length]).filter(([, n]) => n));
   return {
     hoy: today, dia: fmt.day(), hora: new Date().toTimeString().slice(0, 5),
-    nexo_plan: planInfo() ? 'conectado (actualizado ' + planInfo().updatedAt.slice(0, 16).replace('T', ' ') + ')' : 'sin datos: abre NEXO PLAN una vez en este dispositivo',
-    horario_hoy: (planDay(today) || []).map((b) => `${b.s}-${b.e} ${b.title} [${b.cat}]${b.estado ? ' (' + b.estado + ')' : ''}${b.ancla ? ' ⚓' : ''}`),
-    horario_hoy_es_ajustado: !!planInfo()?.ajustado_hoy,
-    horario_manana: (planInfo()?.manana || []).map((b) => `${b.s}-${b.e} ${b.title}`),
-    tareas_pendientes: (planInfo()?.tareas || []).slice(0, 20).map((t) => ({ t: t.titulo, tipo: t.tipo, para: t.para })),
-    eventos_proximos: (planInfo()?.tareas || []).filter((t) => t.para && t.para.slice(0, 10) >= today).sort((a, b) => a.para.localeCompare(b.para)).slice(0, 8).map((t) => `${t.para.replace('T', ' ')} ${t.titulo}`),
-    cumplimiento_semana: planInfo()?.cumplimiento_semana || [],
+    nexo_plan: planSnapshot(today),
+    horario_hoy: planSnapshot(today).hoy,
+    tareas_pendientes: store.list('tareas').filter((t) => !t.done).map((t) => ({ t: t.title, p: (Number(t.imp) || 3) * (Number(t.urg) || 3) >= 16 ? 'alta' : (Number(t.imp) || 3) * (Number(t.urg) || 3) >= 9 ? 'media' : 'baja', para: t.due || '' })).slice(0, 20),
+    eventos_proximos: store.list('agenda').filter((a) => a.date >= today && a.fixed).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).slice(0, 8).map((a) => `${a.date} ${a.start} ${a.title}`),
+    nexo_plan_clasico: planInfo() ? { hoy: (planDay(today) || []).map((b) => `${b.s}-${b.e} ${b.title}`), tareas: (planInfo()?.tareas || []).slice(0, 10).map((t) => t.titulo) } : 'sin datos',
+    estudio_semana: store.list('topics').map((t) => `${t.name} [${t.type}]: ${Math.round(topicDone(t, today))} de ${topicNeed(t)} min`),
+    cronometro: timer.state() ? `${timer.state().label} (${Math.round(timer.elapsed() / 60000)} min)` : 'parado',
+    lo_que_se_de_el: store.list('memoria').map((m) => m.text).slice(-30),
+    avisos: avisos().slice(0, 10).map((a) => `[${a.brain}/${a.sev}] ${a.text}`),
     parciales_proximos: store.list('exams').filter((e) => e.date >= today).slice(0, 6).map((e) => `${e.date} ${e.title}`),
     saldos: balanceByAccount(),
     mes: { ingresos: sum(tx.filter((t) => t.type === 'ingreso')), gastos: sum(tx.filter((t) => t.type === 'gasto')) },
@@ -99,6 +104,8 @@ Cómo respondes:
 - Si el modo es "auto", elige el cerebro (o máximo dos) que más sabe del tema.
 - Si el modo es "consejo" (el bufete completo), Harvey, Donna, Louis y Mike dan una línea cada uno desde su área y **👑 Jessica (decisión):** cierra con la acción a tomar.
 - Si el modo nombra un cerebro, habla solo ese.
+- Si en su mensaje nombra a varios cerebros (por ejemplo "Louis, Harvey y Mike, ¿qué pasaría si…?"), responde CADA uno de los nombrados, en ese orden, con su etiqueta y desde su área; si son 3 o más, cierra Jessica con la decisión. Esto manda sobre el modo elegido.
+- Aprende de él: cuando descubras un dato estable y útil (cómo trabaja mejor, qué le cuesta, preferencias, metas), guárdalo con la herramienta recordar. No guardes datos sensibles (salud, religión, contraseñas).
 - Sé realista y da crítica constructiva con números cuando algo no cuadre.
 - Termina con UNA acción concreta.
 
@@ -107,9 +114,9 @@ Para crear, actualizar o borrar usa crear / actualizar / borrar: la app le muest
 Fechas en formato AAAA-MM-DD, horas HH:MM, dinero en pesos colombianos como número sin puntos.
 Nunca leas entradas del diario marcadas como privadas.
 
-Su horario, tareas, metas, hábitos y ejercicio viven en la app NEXO PLAN (el contexto trae su horario de hoy y mañana y sus tareas).
-Tareas, exámenes y entregas: usa tarea_plan (no la colección tasks).
-Reorganizar el horario: cuando pida mover, cambiar o reorganizar su día (o "agéndame", "no alcancé", "me salió algo"), usa reorganizar_dia con la lista COMPLETA de bloques de esa fecha. Respeta Colegio, Dormir y los bloques ancla (⚓) salvo que él diga lo contrario. No cambies lo que ya pasó hoy. Mete primero las tareas de prioridad alta y las que vencen pronto, deja descansos cortos y no pases de las 11 pm. El horario base de la semana no se toca: el ajuste vale solo para esa fecha.
+Su tiempo vive en NEXO Plan (nuevo, dentro de la red): horario base (bloques), días ajustados (dias), bloques sueltos (agenda), proyectos y tareas con importancia y urgencia de 1 a 5. El contexto trae su horario de hoy y mañana (🔒 = fijo) y sus tareas top.
+Tareas, exámenes y entregas: usa tarea_plan (crea en la colección tareas de NEXO Plan; si te dice fecha y hora exacta, también queda en la agenda).
+Reorganizar el horario: cuando pida mover, cambiar o reorganizar su día (o "agéndame", "no alcancé", "me salió algo"), usa reorganizar_dia con la lista COMPLETA de bloques de esa fecha. Respeta los bloques fijos (🔒: colegio, clases, citas con clientes, dormir) salvo que él diga lo contrario. No cambies lo que ya pasó hoy. Mete primero las tareas de prioridad alta y las que vencen pronto, deja descansos cortos y no pases de las 11 pm. El horario base de la semana no se toca: el ajuste vale solo para esa fecha.
 
 Colecciones y campos:
 ${schemaForAI()}`;
@@ -196,39 +203,62 @@ async function makeTools(ui) {
         motivo: { type: 'string', description: 'Por qué se reorganiza, en pocas palabras' },
         bloques: { type: 'array', description: 'Todos los bloques del día, en orden', items: { type: 'object', additionalProperties: false, required: ['start', 'end', 'title'], properties: {
           start: { type: 'string', description: 'HH:MM' }, end: { type: 'string', description: 'HH:MM' }, title: { type: 'string' },
-          cat: { type: 'string', enum: PLAN_CATS, description: 'Categoría de NEXO PLAN' },
+          cat: { type: 'string', enum: Object.keys(NCATS), description: 'Tipo de bloque' },
+          fijo: { type: 'boolean', description: 'true si no se puede mover (colegio, clase, cita, cliente)' },
         } } },
       } },
       run: async ({ fecha, motivo, bloques }) => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) throw new Error('fecha debe ser AAAA-MM-DD');
         if (!Array.isArray(bloques) || !bloques.length) throw new Error('bloques debe ser una lista con al menos un bloque');
         const hm = /^\d{2}:\d{2}$/;
-        const clean = bloques.filter((b) => b && hm.test(b.start) && hm.test(b.end) && b.title).map((b) => ({ s: b.start, e: b.end, title: String(b.title), cat: PLAN_CATS.includes(b.cat) ? b.cat : 'rutina' })).sort((a, b) => a.s.localeCompare(b.s));
+        const clean = bloques.filter((b) => b && hm.test(b.start) && hm.test(b.end) && b.title).map((b) => ({ s: b.start, e: b.end, title: String(b.title), cat: NCATS[b.cat] ? b.cat : 'trabajo', fixed: !!b.fijo })).sort((a, b) => a.s.localeCompare(b.s));
         if (!clean.length) throw new Error('Ningún bloque tiene start/end HH:MM y title');
-        const before = (planDay(fecha) || []).map((b) => `${b.s}-${b.e} ${b.title}`);
+        const before = dayBlocks(fecha).map((b) => `${b.start}-${b.end} ${b.title}`);
         const after = clean.map((b) => `${b.s}-${b.e} ${b.title}`);
         const removed = before.filter((x) => !after.includes(x)).map((x) => '− ' + x);
         const added = after.filter((x) => !before.includes(x)).map((x) => '+ ' + x);
         const body = `${motivo ? motivo + '\n\n' : ''}${[...removed, ...added].join('\n') || 'Sin cambios'}\n\nNUEVO DÍA:\n${after.join('\n')}`;
         if (!(await ui.confirm(`🗓 Reorganizar ${fmt.date(fecha)}`, body))) return 'El usuario dijo NO. El horario no cambió.';
-        sendToPlan({ type: 'dayEdit', date: fecha, reason: motivo || '', blocks: clean });
-        return `Enviado a NEXO PLAN: el ${fecha} queda con ${clean.length} bloques (se aplica al abrir o volver a NEXO PLAN).`;
+        // NEXO Plan nuevo: el día queda ajustado con esta lista completa (los bloques sueltos de ese día ya vienen incluidos)
+        for (const a of store.list('agenda').filter((x) => x.date === fecha && !x.done)) store.remove('agenda', a.id);
+        store.add('dias', { id: fecha, reason: motivo || 'Reorganizado por Harvey', by: 'harvey', blocks: clean.map((b) => ({ title: b.title, start: b.s, end: b.e, cat: b.cat, fixed: b.fixed })) });
+        // NEXO PLAN clásico (mientras lo sigas usando)
+        const CL = { estudio: 'tareas', trabajo: 'agencia', cliente: 'cliente', contenido: 'video', salud: 'ejercicio', personal: 'rutina', descanso: 'libre' };
+        sendToPlan({ type: 'dayEdit', date: fecha, reason: motivo || '', blocks: clean.map((b) => ({ s: b.s, e: b.e, title: b.title, cat: PLAN_CATS.includes(CL[b.cat]) ? CL[b.cat] : 'rutina' })) });
+        return `Listo: el ${fecha} quedó con ${clean.length} bloques en NEXO Plan.`;
       },
     }),
     betaTool({
       name: 'tarea_plan',
-      description: 'Crea una tarea, examen, exposición o entrega en NEXO PLAN (con sus recordatorios). Pide confirmación Sí/No.',
+      description: 'Crea una tarea, examen, exposición o entrega en NEXO Plan, con importancia y urgencia de 1 a 5. Si trae hora exacta, también la pone en la agenda de ese día como bloque fijo. Pide confirmación Sí/No.',
       inputSchema: { type: 'object', additionalProperties: false, required: ['titulo'], properties: {
         titulo: { type: 'string' }, tipo: { type: 'string', enum: ['tarea', 'examen', 'expo', 'grupo'] },
         para: { type: 'string', description: 'AAAA-MM-DD o AAAA-MM-DDTHH:MM' }, materia: { type: 'string' }, notas: { type: 'string' },
+        importancia: { type: 'integer', minimum: 1, maximum: 5 }, urgencia: { type: 'integer', minimum: 1, maximum: 5 }, minutos: { type: 'integer', description: 'Cuánto toma (15 a 240)' },
       } },
-      run: async ({ titulo, tipo, para, materia, notas }) => {
+      run: async ({ titulo, tipo, para, materia, notas, importancia, urgencia, minutos }) => {
         if (!titulo) throw new Error('falta titulo');
         if (para && !/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(para)) throw new Error('para debe ser AAAA-MM-DD o AAAA-MM-DDTHH:MM');
-        const body = [`Tipo: ${tipo || 'tarea'}`, para ? `Para: ${para.replace('T', ' ')}` : 'Para: mañana', materia ? `Materia: ${materia}` : '', notas || ''].filter(Boolean).join('\n');
-        if (!(await ui.confirm(`➕ Nueva en NEXO PLAN · ${titulo}`, body))) return 'El usuario dijo NO.';
+        const imp = Math.min(5, Math.max(1, Number(importancia) || (tipo === 'examen' ? 5 : 3))), urg = Math.min(5, Math.max(1, Number(urgencia) || 3));
+        const body = [`Tipo: ${tipo || 'tarea'}`, para ? `Para: ${para.replace('T', ' ')}` : 'Sin fecha', `Importancia ${imp} × urgencia ${urg}`, materia ? `Materia: ${materia}` : '', notas || ''].filter(Boolean).join('\n');
+        if (!(await ui.confirm(`➕ Nueva en NEXO Plan · ${titulo}`, body))) return 'El usuario dijo NO.';
+        const due = para ? para.slice(0, 10) : '';
+        store.add('tareas', { title: titulo, imp, urg, minutes: Math.min(240, Math.max(15, Number(minutos) || 30)), due, done: false, tipo: tipo || 'tarea', notes: [materia, notas].filter(Boolean).join(' · ') });
+        if (para && para.length > 10) { const [hh, mm] = para.slice(11).split(':').map(Number); const end = hh * 60 + mm + Math.min(240, Math.max(15, Number(minutos) || 60)); store.add('agenda', { date: due, start: para.slice(11), end: `${String(Math.floor(end / 60) % 24).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`, title: titulo, fixed: true, cat: tipo === 'examen' ? 'estudio' : 'trabajo', src: 'harvey' }); }
         sendToPlan({ type: 'task', title: titulo, tipo: tipo || 'tarea', due: para || '', subj: materia || '', notes: notas || '' });
-        return 'Enviada a NEXO PLAN.';
+        return 'Creada en NEXO Plan.';
+      },
+    }),
+    betaTool({
+      name: 'recordar',
+      description: 'Guarda un dato estable que aprendiste de él (cómo trabaja mejor, preferencias, metas, qué le cuesta) para tenerlo en cuenta en el futuro. Pide confirmación Sí/No.',
+      inputSchema: { type: 'object', additionalProperties: false, required: ['dato', 'cerebro'], properties: { dato: { type: 'string' }, cerebro: { type: 'string', enum: Object.keys(BRAINS) } } },
+      run: async ({ dato, cerebro }) => {
+        if (!dato || dato.length < 4) throw new Error('dato muy corto');
+        if (store.list('memoria').some((m) => m.text.toLowerCase() === dato.toLowerCase())) return 'Ya lo sabía.';
+        if (!(await ui.confirm(`🧠 ${BRAINS[cerebro]?.name || 'Harvey'} quiere recordar`, dato))) return 'El usuario dijo NO. No lo guardes.';
+        store.add('memoria', { text: dato.slice(0, 300), brain: cerebro });
+        return 'Guardado en su memoria.';
       },
     }),
     betaTool({
@@ -250,12 +280,13 @@ async function makeTools(ui) {
 // ---------- Modelo automático según el trabajo ----------
 // Registros rápidos → Haiku (barato). Conversación normal → Sonnet. Análisis, planes, estrategia o consejo → Opus.
 const HEAVY = /(analiz|revis|estrateg|plan de|planea|organiza|semana|mes|consejo|por qu[eé]|c[oó]mo (hago|puedo|mejoro)|ideas?|propuesta|cotiza|negoci|precio|invertir|ahorr|libertad|universidad|saber 11|gui[oó]n|mensaje para)/i;
+const MULTI = /\b(harvey|donna|louis|mike|jessica)\b[^.?!]*\b(harvey|donna|louis|mike|jessica)\b/i;
 const QUICK_RE = /^(agrega|agr[eé]game|registra|anota|crea|marca|pon|apunta|gast[eé]|pagu[eé]|recib[ií]|me pagaron|borra|elimina|mueve|cambia)\b/i;
 export function pickModel(text, mode) {
   const chosen = prefs.get('model', MODEL_DEFAULT);
   if (chosen !== 'auto') return chosen;
   const t = text.trim();
-  if (mode === 'consejo' || HEAVY.test(t) || t.length > 280) return 'claude-opus-5-5';
+  if (mode === 'consejo' || MULTI.test(t) || HEAVY.test(t) || t.length > 280) return 'claude-opus-5-5';
   if (QUICK_RE.test(t) || t.length < 50) return 'claude-haiku-5-5';
   return 'claude-sonnet-5-5';
 }
@@ -325,7 +356,8 @@ const QUICK = [
   ['☀️ Resumen de hoy', 'Dame el resumen de hoy: qué tengo, qué está pendiente y qué hago primero.'],
   ['⏭ ¿Qué hago ahora?', '¿Qué debería estar haciendo ahora mismo según mi horario y pendientes?'],
   ['💸 Registrar gasto', 'Quiero registrar un gasto: '],
-  ['✅ Nueva tarea', 'Agrega en NEXO PLAN la tarea: '],
+  ['✅ Nueva tarea', 'Agrega en NEXO Plan la tarea: '],
+  ['🏛 Varios cerebros', 'Louis, Harvey y Mike: ¿qué pasaría si '],
   ['🗓 Reorganizar mi día', 'Reorganiza mi día de hoy desde ahora según mis tareas pendientes y prioridades. Mantén el colegio y los compromisos con clientes.'],
   ['📅 Bloque de estudio', 'Agéndame un bloque de estudio de '],
   ['📈 Resumen semanal', 'Haz mi revisión semanal: cumplimiento de horario, hábitos, plata y negocio. Qué mejorar.'],
@@ -358,13 +390,14 @@ export function mountChat(root, { appId, initial = '', compact = false } = {}) {
   const bubble = (m) => {
     const d = document.createElement('div');
     d.className = 'hv-msg ' + (m.role === 'user' ? 'me' : 'ai');
+    if (m.report) d.classList.add('rep');
     d.innerHTML = m.role === 'user' ? esc(m.text) : md(m.text);
     return d;
   };
   const paintLog = () => {
     log.innerHTML = '';
     const c = chat().slice(-40);
-    if (!c.length) log.innerHTML = `<div class="hv-hello"><b>Hola, Cristóbal.</b> Soy Harvey y tengo 4 cerebros más: Mike, Louis, Donna y Jessica. Leo todas tus apps NEXO. Pídeme registrar algo, mover tu agenda o darte un consejo.</div>`;
+    if (!c.length) log.innerHTML = `<div class="hv-hello"><b>Hola, Cristóbal.</b> Soy Harvey y tengo 4 cerebros más: Mike, Louis, Donna y Jessica. Leo todas tus apps NEXO. Pídeme registrar algo, mover tu agenda o darte un consejo. Puedes llamar a varios a la vez: <i>"Louis, Harvey y Mike, ¿qué pasaría si subo el precio?"</i></div>`;
     c.forEach((m) => log.appendChild(bubble(m)));
     log.scrollTop = log.scrollHeight;
   };
@@ -502,6 +535,7 @@ function injectCSS() {
   .hv-msg.typing i:nth-child(2){animation-delay:.15s}.hv-msg.typing i:nth-child(3){animation-delay:.3s}
   @keyframes hvdot{50%{opacity:.25;transform:translateY(-3px)}}@keyframes hvin{from{opacity:0;transform:translateY(6px)}}
   .hv-note{align-self:center;font-size:12px;color:var(--muted)}
+  .hv-msg.rep{border-color:color-mix(in srgb,#F5B83D 60%,var(--line));background:color-mix(in srgb,#F5B83D 8%,var(--panel))}
   .hv-hello{color:var(--muted);padding:14px;border:1px dashed var(--line);border-radius:14px}.hv-hello b{color:var(--fg)}
   .hv-quick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
   .hv-quick button{flex:none;padding:7px 11px;border-radius:10px;border:1px solid color-mix(in srgb,var(--c-ai) 40%,var(--line));background:color-mix(in srgb,var(--c-ai) 8%,var(--panel));cursor:pointer;font-size:13px}

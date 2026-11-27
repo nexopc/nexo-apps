@@ -1,16 +1,8 @@
 // NEXO Studio · tu contenido
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
+import { ST, metro, videoSheet, setShootMod, scriptEditor, startScript, quickIdea, contenido, biblioteca, scenesOf } from './v2.js';
 
-const VERSION = '1.1.0';
-const ST = [['idea', '💡', 'Idea'], ['guion', '📝', 'Guion'], ['grabado', '🎥', 'Grabado'], ['edicion', '✂️', 'Edición'], ['revision', '👀', 'Revisión'], ['publicado', '✅', 'Publicado']];
-const MOLDS = {
-  'Gancho-Problema-Solución-CTA': 'GANCHO (0-3 s): \nPROBLEMA (3-10 s): \nSOLUCIÓN (10-40 s): \nCTA (últimos 5 s): ',
-  'Antes y después': 'ANTES (cómo era): \nTRANSICIÓN (corte fuerte o efecto): \nDESPUÉS (resultado): \nCTA: ',
-  'Top 3': 'GANCHO: "3 ___ que nadie te dice"\n3. \n2. \n1. (el mejor)\nCTA: ',
-  'Mito vs realidad': 'MITO: \nPOR QUÉ LA GENTE LO CREE: \nREALIDAD (con dato): \nCTA: ',
-  'Unboxing / review': 'GANCHO (resultado o precio): \nQUÉ TRAE: \n3 PUNTOS FUERTES: \n1 PUNTO DÉBIL (honesto): \n¿PARA QUIÉN ES?: \nCTA (dónde comprar): ',
-  'Tutorial rápido': 'GANCHO (qué vas a lograr): \nPASO 1: \nPASO 2: \nPASO 3: \nRESULTADO: \nCTA: ',
-};
+const VERSION = '2.0.0';
 const cname = (id) => store.get('clients', id)?.name || '';
 
 const ideas = fromSchema('ideas', { id: 'ideas', title: 'Ideas', icon: '💡', single: 'idea',
@@ -27,12 +19,12 @@ const ideas = fromSchema('ideas', { id: 'ideas', title: 'Ideas', icon: '💡', s
   } });
 
 const guiones = fromSchema('scripts', { id: 'guiones', title: 'Guiones', icon: '📝', single: 'guion',
-  titleOf: (r) => r.title, subOf: (r) => esc(r.mold || ''),
-  onAdd() {
-    const body = h(`<div class="list">${Object.keys(MOLDS).map((m) => `<div class="list-item" data-m="${esc(m)}"><span style="font-size:20px">🧩</span><div class="li-main"><div class="li-title">${esc(m)}</div><div class="li-sub">${esc(MOLDS[m].split('\n')[0])}</div></div></div>`).join('')}</div>`);
-    const s = sheet('Elige un molde', body);
-    body.onclick = (e) => { const it = e.target.closest('[data-m]'); if (!it) return; s.close(); setTimeout(() => openForm(guiones, null, { mold: it.dataset.m, body: MOLDS[it.dataset.m] }), 300); };
-  } });
+  sort: (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''),
+  titleOf: (r) => r.title,
+  subOf: (r) => { const sc = Array.isArray(r.blocks) ? scenesOf(r).filter((x) => x.n > 0) : []; return [cname(r.client), sc.length ? `${sc.length} escenas · ${sc.reduce((a, x) => a + x.tomas, 0)} tomas` : r.mold].filter(Boolean).map(esc).join(' · '); },
+  sideOf: (r) => (r.shot?.length && Array.isArray(r.blocks) ? `<span class="chip s-create">🎬 ${r.shot.length}/${scenesOf(r).filter((x) => x.n > 0).length}</span>` : ''),
+  onAdd: () => startScript(), onOpen: (r) => scriptEditor(r),
+  emptyTitle: 'Sin guiones', emptyText: 'Toca ＋ y elige un molde: el guion se arma con bloques (escena, lugar, persona, plano, diálogo…) que editas y mueves.' });
 
 const grabaciones = fromSchema('shoots', { id: 'grabaciones', title: 'Grabaciones', icon: '🎬', single: 'grabación',
   render(el) {
@@ -52,18 +44,19 @@ const grabaciones = fromSchema('shoots', { id: 'grabaciones', title: 'Grabacione
   } });
 
 const videos = fromSchema('videos', { id: 'videos', title: 'Videos', icon: '🎞', single: 'video',
+  emptyText: 'Toca ＋ para tu primer video.',
   render(el) {
     const vs = store.list('videos');
     el.innerHTML = `<div class="board">${ST.map(([k, e, l]) => { const list = vs.filter((v) => (v.status || 'idea') === k);
       return `<section class="lane"><header><b>${e} ${l}</b><span class="muted num">${list.length}</span></header>
-      ${list.map((v) => `<div class="vcard" data-id="${v.id}"><b>${esc(v.title)}</b><span class="muted">${esc([cname(v.client), v.platform].filter(Boolean).join(' · '))}</span>
+      ${list.map((v) => `<div class="vcard" data-id="${v.id}"><b>${esc(v.title)}</b>${metro(v.status)}<span class="muted">${esc([cname(v.client), v.platform].filter(Boolean).join(' · '))}</span>
         ${v.publishDate ? `<span class="chip">📅 ${fmt.date(v.publishDate)}</span>` : ''}
         <div class="row">${k !== 'idea' ? `<button class="mv" data-mv="-1" data-v="${v.id}" aria-label="Atrás">←</button>` : ''}${k !== 'publicado' ? `<button class="mv fwd" data-mv="1" data-v="${v.id}">Siguiente →</button>` : ''}</div></div>`).join('')}</section>`; }).join('')}</div>`;
     el.onclick = (e) => {
       const m = e.target.closest('[data-mv]');
       if (m) { const v = store.get('videos', m.dataset.v); const i = ST.findIndex((s) => s[0] === (v.status || 'idea')); const n = ST[Math.max(0, Math.min(ST.length - 1, i + +m.dataset.mv))][0];
-        store.update('videos', v.id, { status: n, ...(n === 'publicado' && !v.publishDate ? { publishDate: fmt.today() } : {}) }); if (n === 'publicado') toast('¡Publicado! Registra sus métricas en 📊'); return; }
-      const c = e.target.closest('.vcard'); if (c) openForm(videos, store.get('videos', c.dataset.id));
+        store.update('videos', v.id, { status: n, ...(n === 'publicado' && !v.publishDate ? { publishDate: fmt.today() } : {}) }); if (n === 'publicado') toast('✅ Entregado. Registra sus métricas en 📊'); return; }
+      const c = e.target.closest('.vcard'); if (c) videoSheet(store.get('videos', c.dataset.id), videos);
     };
   } });
 
@@ -84,6 +77,7 @@ const calendario = { id: 'calendario', title: 'Calendario', icon: '🗓',
     };
   } };
 
+const clips = fromSchema('clips', { id: 'clips', title: 'Clips', icon: '🎞', single: 'clip' });
 const referencias = fromSchema('references', { id: 'referencias', title: 'Referencias', icon: '📌', single: 'referencia',
   titleOf: (r) => r.title, subOf: (r) => esc(r.note || r.link || ''), sideOf: (r) => (r.link && /^https:\/\//.test(r.link) ? `<a class="btn btn-edit ghost sm" href="${esc(r.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Abrir ↗</a>` : '') });
 
@@ -137,9 +131,10 @@ function home(el) {
 }
 
 const QUICK = [
-  { label: 'Idea', icon: '💡', color: '#FFE14D', run: () => openForm(ideas) },
+  { label: 'Idea', icon: '💡', color: '#FFE14D', run: () => quickIdea() },
   { label: 'Grabar', icon: '🎥', color: '#FF2E4D', run: () => openForm(grabaciones) },
-  { label: 'Guion', icon: '📝', color: '#FF8A1F', run: () => guiones.onAdd() },
+  { label: 'Guion', icon: '📝', color: '#FF8A1F', run: () => startScript() },
   { label: 'Publicar', icon: '🚀', color: '#22D3EE', run: (api) => api.go('videos') },
 ];
-boot({ appId: 'studio', version: VERSION, home, quick: QUICK, modules: [videos, ideas, guiones, grabaciones, calendario, metricas, portafolio, referencias] });
+setShootMod(grabaciones);
+boot({ appId: 'studio', version: VERSION, home, quick: QUICK, modules: [videos, contenido, guiones, grabaciones, ideas, biblioteca(clips, ideas, referencias), calendario, metricas, portafolio, referencias] });

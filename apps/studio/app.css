@@ -135,3 +135,47 @@ body { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, 
 .vtabs button { padding: 8px 2px; font-size: 13px; white-space: nowrap; }
 .metro i.st { display: block; }
 @media (max-width: 600px) { .page-title h1 { font-size: 22px; } }
+
+/* 🌳 guion como esquema libre (todo opcional, se escribe ahí mismo) */
+.olw { max-width: 860px; }
+.ol { display: grid; gap: 10px; margin-top: 10px; }
+.ol-esc { border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 16px; padding: 8px; background: color-mix(in srgb, var(--accent) 6%, var(--panel)); display: grid; gap: 6px; }
+.ol-row { display: flex; align-items: center; gap: 6px; }
+.ol-row .ar { width: 26px; height: 30px; border: 0; background: none; color: var(--muted); cursor: pointer; flex: none; font-size: 12px; }
+.ol-row .cl { font: 700 12px var(--display); color: var(--accent); flex: none; min-width: 26px; }
+.ol-in { flex: 1 1 0; min-width: 0; width: auto; box-sizing: border-box; background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 7px 9px; color: var(--fg); font: inherit; font-size: 14px; resize: none; }
+.ol-in:hover { border-color: var(--line); }
+.ol-in:focus { border-color: var(--accent); background: var(--bg2); outline: none; }
+.ol-in::placeholder { color: var(--faint); }
+.ol-in.t { font-weight: 700; font-size: 15px; }
+.ol-in.nm { font-weight: 700; font-size: 13px; padding: 4px 9px; }
+.ol-in.sm { font-size: 12.5px; padding: 5px 9px; }
+.chipb { flex: none; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px dashed var(--line); background: none; color: var(--muted); border-radius: 99px; padding: 4px 9px; font: 600 11.5px var(--font); cursor: pointer; }
+.chipb.on { border-style: solid; color: var(--fg); background: var(--panel2); }
+.chip.sm { font-size: 10.5px; padding: 2px 7px; flex: none; }
+.ol-pl { margin-left: 10px; border-left: 2px solid var(--line); padding-left: 8px; display: grid; gap: 4px; }
+.ol-pl.ok { border-left-color: var(--c-create); }
+.ol-it { display: flex; gap: 6px; align-items: flex-start; margin-left: 18px; padding: 4px; border-radius: 12px; background: var(--panel); }
+.ol-it .ic { flex: none; width: 26px; text-align: center; font-size: 17px; padding-top: 6px; }
+.ol-col { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.ol-two { display: flex; gap: 4px; } .ol-two .ol-in { flex: 1; }
+.mic-in.sm textarea { padding-right: 44px; } .mic-in.sm .mic-b { width: 32px; height: 32px; font-size: 14px; top: 3px; right: 3px; }
+.linkish.sm { font-size: 11.5px; justify-self: start; padding: 2px 9px; }
+.ol-map .smap { height: 200px; }
+.ol-add { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 4px 18px; }
+.ol-add button { border: 1px dashed var(--line); background: none; color: var(--muted); border-radius: 99px; padding: 5px 10px; font: 600 11.5px var(--font); cursor: pointer; }
+.ol-add button:hover, .ol-addp button:hover { color: var(--accent); border-color: var(--accent); }
+.ol-addp { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 10px; }
+.ol-addp button { border: 1.5px dashed color-mix(in srgb, var(--accent) 55%, var(--line)); background: none; color: var(--accent); border-radius: 12px; padding: 8px 12px; font: 700 13px var(--font); cursor: pointer; }
+.ol-sum { font-size: 12px; margin-left: 34px; }
+/* clientes */
+.cols { display: flex; gap: 8px; flex-wrap: wrap; }
+.colb { width: 34px; height: 34px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+.colb.on { border-color: var(--fg); }
+.avc { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--display); background: color-mix(in srgb, var(--k) 22%, var(--panel2)); color: var(--k); }
+
+.ol-col .ol-in, .ol-col textarea.ol-in { width: 100%; }
+.ol-row > .chipb, .ol-row > .km, .ol-row > .chip, .ol-row > .gr { position: relative; z-index: 1; }
+.olw, #gl, .ol, .ol-esc, .ol-pl, .ol-it, .ol-col, .ol-map, .ol-row { min-width: 0; max-width: 100%; }
+.ol > *, .ol-esc > *, .ol-pl > * { min-width: 0; }
+@media (max-width: 600px) { .ol-row.esc { flex-wrap: wrap; } .ol-row.esc .chipb { order: 5; margin-left: 58px; max-width: calc(100% - 64px); } }

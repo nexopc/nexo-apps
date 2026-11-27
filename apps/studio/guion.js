@@ -1,17 +1,17 @@
 // 🎬 Pantalla del video: 🌳 Guion (árbol) · 📍 Grabar · ✂️ Editar · 📤 Entregar
 import { store, fmt, esc, h, toast, sheet, confirmSheet } from '../../core/shell.js';
 import { timer } from '../../core/timer.js';
-import { EST, estIdx, colorCli, cname, lugarName, escenas, nuevaEscena, nuevoPlano, PLANT, MOVS, tipoL, claq, letra, editarArbol, copia, totalSeg, tomaBuena, horas, listaEdicion, FILMORA, TAGS, uid } from './datos.js';
+import { EST, estIdx, colorCli, cname, lugarName, escenas, nuevaEscena, nuevoPlano, nuevoItem, ITEM, itemsDe, PLANT, MOVS, tipoL, claq, letra, editarArbol, copia, totalSeg, tomaBuena, horas, listaEdicion, FILMORA, TAGS, uid } from './datos.js';
 import { mapaEditor, mapaHtml } from './mapa.js';
 import { abrirGrabacion } from './grabar.js';
 import { compartirGuion } from './pdfs.js';
+import { crearCliente } from './clientes.js';
 
-const S = { vid: '', tab: 'guion', open: new Set(), sel: null, undo: null };
+const S = { vid: '', tab: 'guion', closed: new Set(), closedP: new Set(), more: new Set(), undo: null };
 const wide = () => matchMedia('(min-width: 900px)').matches;
 const SR = () => window.SpeechRecognition || window.webkitSpeechRecognition;
 export function abrirVideo(id, api, tab = 'guion') {
-  S.vid = id; S.tab = tab; S.sel = null; S.undo = null;
-  const v = store.get('videos', id); if (v) S.open = new Set(escenas(v).slice(0, 1).map((e) => e.id));
+  S.vid = id; S.tab = tab; S.undo = null; S.closed = new Set(); S.closedP = new Set(); S.more = new Set();
   api.go('video');
 }
 
@@ -50,89 +50,119 @@ export const videoPage = { id: 'video', title: 'Video', icon: '🎬', hidden: tr
   } };
 const repaint = (api) => api.paint();
 
-// ---------- 🌳 Guion ----------
+// ---------- 🌳 Guion: esquema libre ----------
+// Agregas escena, plano, diálogo, cámara, mapa, texto o nota en el orden que quieras, sin llenar nada.
+// Todo se escribe ahí mismo cuando lo sepas (se guarda al salir de cada campo).
+const ph = { persona: 'Qué dice…', camara: 'Dónde va la cámara', pantalla: 'Texto que sale en pantalla', nota: 'Nota' };
 function tabGuion(el, api) {
-  const v = store.get('videos', S.vid);
-  el.innerHTML = `<div class="${wide() ? 'gwide' : ''}"><div id="gl"></div>${wide() ? '<div id="gr" class="card gside"></div>' : ''}</div>`;
+  el.innerHTML = '<div class="olw"><div id="gl"></div></div>';
+  const gl = el.querySelector('#gl');
+  let focus = null;
+  const itemHtml = (x, si, pi, ii) => {
+    const id = `${si}|${pi}|${ii}`; const k = x.k;
+    const menu = `<button type="button" class="km" data-im="${id}" aria-label="Opciones">⋮</button>`;
+    if (k === 'persona') return `<div class="ol-it per"><span class="ic">🧍</span><div class="ol-col"><input class="ol-in nm" data-i="${id}|nombre" value="${esc(x.nombre)}" placeholder="¿Quién? (opcional)"><div class="mic-in sm"><textarea class="ol-in" rows="1" data-i="${id}|dice" placeholder="Qué dice…">${esc(x.dice)}</textarea><button type="button" class="mic-b" data-mic="${id}|dice" aria-label="Dictar">🎙</button></div>
+        ${x.donde || x.hace || S.more?.has(x.id) ? `<div class="ol-two"><input class="ol-in sm" data-i="${id}|donde" value="${esc(x.donde)}" placeholder="Dónde está"><input class="ol-in sm" data-i="${id}|hace" value="${esc(x.hace)}" placeholder="Qué hace"></div>` : `<button type="button" class="linkish sm" data-more="${x.id}">＋ dónde está / qué hace</button>`}</div>${menu}</div>`;
+    if (k === 'camara') return `<div class="ol-it"><span class="ic">📷</span><div class="ol-col"><input class="ol-in" data-i="${id}|donde" value="${esc(x.donde)}" placeholder="Dónde va la cámara"><input class="ol-in" data-i="${id}|mira" value="${esc(x.mira)}" placeholder="Qué mira"></div>${menu}</div>`;
+    if (k === 'mapa') return `<div class="ol-it map"><span class="ic">🗺</span><div class="ol-col"><small class="muted">Mapa de este plano</small><div class="ol-map" data-map="${id}"></div></div>${menu}</div>`;
+    return `<div class="ol-it"><span class="ic">${ITEM[k]?.[0] || '📝'}</span><div class="ol-col"><input class="ol-in" data-i="${id}|texto" value="${esc(x.texto)}" placeholder="${ph[k] || 'Texto'}"></div>${menu}</div>`;
+  };
+  const addBar = (si, pi) => `<div class="ol-add">${Object.entries(ITEM).map(([k, [ic, l]]) => `<button type="button" data-oadd="${si}|${pi}|${k}">＋ ${ic} ${l}</button>`).join('')}</div>`;
   const paintTree = () => {
     const vv = store.get('videos', S.vid); const es = escenas(vv);
-    el.querySelector('#gl').innerHTML = `
-      <div class="card kv vdat" data-a="datos"><b>Objetivo</b><span>${esc(vv.objetivo || '—')}</span><b>Duración</b><span>${esc(vv.duracion || (totalSeg(vv) ? totalSeg(vv) + ' s' : '—'))} · ${esc(vv.formato || '9:16')}</span><b>Gancho 3 s</b><span>${esc(vv.gancho || '—')}</span><b>Llamado</b><span>${esc(vv.cta || '—')}</span><b>Música</b><span>${esc(vv.musica || '—')}</span><span class="vdat-e">✎</span></div>
+    gl.innerHTML = `
+      <div class="card kv vdat" data-a="datos"><b>Objetivo</b><span>${esc(vv.objetivo || '—')}</span><b>Duración</b><span>${esc(vv.duracion || (totalSeg(vv) ? totalSeg(vv) + ' s' : '—'))} · ${esc(vv.formato || '9:16')}</span><b>Gancho 3 s</b><span>${esc(vv.gancho || '—')}</span><b>Llamado</b><span>${esc(vv.cta || '—')}</span><span class="vdat-e">✎</span></div>
       ${S.undo ? '<div class="undo card"><span>Se borró.</span><button class="btn btn-edit ghost sm" data-a="undo">↶ Deshacer</button></div>' : ''}
-      <div class="tree">${es.map((e, si) => { const op = S.open.has(e.id); return `
-        <div class="nd esc" data-et="${e.id}"><span class="ar">${op ? '▾' : '▸'}</span><span class="t"><b>E${si + 1} · ${esc(e.titulo || 'Escena ' + (si + 1))}</b><small>${esc([lugarName(e), e.fecha ? fmt.date(e.fecha) + (e.hora ? ' ' + e.hora : '') : '', e.ambiente || e.luz].filter(Boolean).join(' · ') || 'toca ✎ para lugar, luz y fecha')}</small></span><span class="chip">${e.planos.length} planos</span><button class="km" data-em="${si}" aria-label="Opciones de la escena">⋮</button></div>
-        ${op ? `<div class="nd sub" data-ee="${si}"><span class="t muted">✎ Lugar, ambiente, luz, fecha y hora, utilería, vestuario, qué prepara el cliente</span></div>
-          ${e.planos.map((p, pi) => `<div class="nd pl ${S.sel && S.sel[0] === si && S.sel[1] === pi ? 'on' : ''}" data-pl="${si}|${pi}"><span class="t"><b>🎥 ${claq(si, pi)} ${esc(tipoL(p.tipo))}</b><small>${esc([p.seg ? p.seg + ' s' : '', p.mov, p.desc].filter(Boolean).join(' · '))}</small>
-            <span class="pills">${p.mapa?.length ? '<i>🗺</i>' : ''}${p.cam?.donde || p.cam?.mira ? '<i>📷</i>' : ''}${p.personas?.length ? `<i>🧍${p.personas.length > 1 ? p.personas.length : ''}</i>` : ''}${p.pantalla ? '<i>🔤</i>' : ''}${tomaBuena(p) ? `<i>T${tomaBuena(p)}</i>` : ''}</span></span>${p.grabado ? '<span class="gr">✅</span>' : ''}<button class="km" data-pm="${si}|${pi}" aria-label="Opciones del plano">⋮</button></div>`).join('')}
-          <button class="nd add" data-np="${si}">＋ Plano en E${si + 1}</button>` : ''}`; }).join('')}
-      </div>
+      <div class="ol">${es.map((e, si) => { const cerrada = S.closed.has(e.id); const det = [lugarName(e), e.fecha ? fmt.date(e.fecha) + (e.hora ? ' ' + e.hora : '') : ''].filter(Boolean).join(' · ');
+        return `<div class="ol-esc">
+        <div class="ol-row esc"><button type="button" class="ar" data-tog="${e.id}" aria-label="${cerrada ? 'Abrir' : 'Cerrar'} escena">${cerrada ? '▸' : '▾'}</button><b class="cl">E${si + 1}</b><input class="ol-in t" data-e="${si}|titulo" value="${esc(e.titulo)}" placeholder="Escena ${si + 1} (nombre opcional)"><button type="button" class="chipb ${det ? 'on' : ''}" data-ee="${si}">📍 ${esc(det || 'lugar y fecha')}</button><button type="button" class="km" data-em="${si}" aria-label="Opciones de la escena">⋮</button></div>
+        ${cerrada ? `<div class="muted ol-sum">${e.planos.length} plano(s)</div>` : `
+          ${e.planos.map((p, pi) => { const pc = S.closedP.has(p.id); const its = itemsDe(p); const chips = [p.tipo && tipoL(p.tipo), p.seg ? p.seg + ' s' : '', p.mov].filter(Boolean).join(' · ');
+            return `<div class="ol-pl ${p.grabado ? 'ok' : ''}">
+            <div class="ol-row pl"><button type="button" class="ar" data-togp="${p.id}" aria-label="${pc ? 'Abrir' : 'Cerrar'} plano">${pc ? '▸' : '▾'}</button><b class="cl">${claq(si, pi)}</b><input class="ol-in" data-p="${si}|${pi}|desc" value="${esc(p.desc)}" placeholder="Plano · qué se ve (opcional)">${chips ? `<span class="chip sm">${esc(chips)}</span>` : ''}${p.grabado ? '<span class="gr">✅</span>' : ''}<button type="button" class="km" data-pm="${si}|${pi}" aria-label="Opciones del plano">⋮</button></div>
+            ${pc ? `<div class="muted ol-sum">${its.map((x) => ITEM[x.k]?.[0]).join(' ') || 'vacío'}</div>` : `${its.map((x, ii) => itemHtml(x, si, pi, ii)).join('')}${addBar(si, pi)}`}</div>`; }).join('')}
+          <div class="ol-addp"><button type="button" data-np="${si}">＋ Plano</button><button type="button" data-npd="${si}">＋ 🧍 Diálogo (plano nuevo)</button></div>`}</div>`; }).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn btn-create" data-a="nesc" style="flex:1">＋ Escena</button><button class="btn btn-edit ghost" data-a="pdf">📄 PDF para el cliente</button></div>
-      ${!es.length ? '<p class="muted" style="font-size:13px">Empieza con ＋ Escena (un lugar o momento del video) y dentro agrega sus planos. Solo el plano es obligatorio: mapa, cámara y persona los llenas si ese plano los necesita.</p>' : ''}`;
+      ${!es.length ? '<p class="muted" style="font-size:13px">Toca ＋ Escena y ve agregando planos, diálogos, cámara, mapa o texto en el orden que quieras. Nada es obligatorio: el nombre y los detalles los pones cuando los sepas.</p>' : ''}`;
+    // mapas (uno por plano)
+    gl.querySelectorAll('[data-map]').forEach((m) => { const [si, pi, ii] = m.dataset.map.split('|').map(Number); const ee = escenas(store.get('videos', S.vid))[si];
+      const it = itemsDe(ee.planos[pi])[ii]; mapaEditor(m, it.mapa || [], (items) => editarArbol(S.vid, (x) => { x[si].planos[pi].items[ii].mapa = items; }), { base: store.get('lugares', ee.lugar)?.mapa || [] }); });
+    gl.querySelectorAll('textarea.ol-in').forEach(grow);
+    if (focus) { const f = gl.querySelector(focus); focus = null; if (f) { f.focus(); f.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }
   };
-  const paintSide = () => {
-    const gr = el.querySelector('#gr'); if (!gr) return;
-    if (!S.sel) { gr.innerHTML = '<p class="muted">Toca un plano del árbol para verlo aquí con su mapa grande.</p>'; return; }
-    planoEditor(gr, S.sel[0], S.sel[1], { onChange: paintTree });
+  const grow = (t) => { t.style.height = 'auto'; t.style.height = Math.max(38, t.scrollHeight) + 'px'; };
+  paintTree();
+  const firstEmpty = (si, pi, ii, k) => (k === 'persona' ? `[data-i="${si}|${pi}|${ii}|dice"]` : k === 'mapa' ? null : `[data-i="${si}|${pi}|${ii}|${k === 'camara' ? 'donde' : 'texto'}"]`);
+  el.oninput = (e) => { if (e.target.matches('textarea.ol-in')) grow(e.target); };
+  el.onchange = (e) => {
+    const t = e.target; const val = t.value.trim();
+    if (t.dataset.e) { const [si, f] = t.dataset.e.split('|'); editarArbol(S.vid, (x) => { x[+si][f] = val; }); return; }
+    if (t.dataset.p) { const [si, pi, f] = t.dataset.p.split('|'); editarArbol(S.vid, (x) => { x[+si].planos[+pi][f] = val; }); return; }
+    if (t.dataset.i) { const [si, pi, ii, f] = t.dataset.i.split('|'); editarArbol(S.vid, (x) => { x[+si].planos[+pi].items[+ii][f] = val; }); }
   };
-  paintTree(); paintSide();
   el.onclick = async (e) => {
     const g = (s) => e.target.closest(s); let b;
-    if ((b = g('[data-em]'))) { e.stopPropagation(); return menuEscena(+b.dataset.em, () => { paintTree(); paintSide(); }); }
-    if ((b = g('[data-pm]'))) { e.stopPropagation(); const [si, pi] = b.dataset.pm.split('|').map(Number); return menuPlano(si, pi, () => { paintTree(); paintSide(); }); }
-    if ((b = g('[data-et]'))) { const id = b.dataset.et; S.open.has(id) ? S.open.delete(id) : S.open.add(id); return paintTree(); }
+    if ((b = g('[data-tog]'))) { const id = b.dataset.tog; S.closed.has(id) ? S.closed.delete(id) : S.closed.add(id); return paintTree(); }
+    if ((b = g('[data-togp]'))) { const id = b.dataset.togp; S.closedP.has(id) ? S.closedP.delete(id) : S.closedP.add(id); return paintTree(); }
+    if ((b = g('[data-more]'))) { S.more.add(b.dataset.more); return paintTree(); }
+    if ((b = g('[data-mic]'))) { const path = b.dataset.mic; const ta = gl.querySelector(`[data-i="${path}"]`); const [si, pi, ii, f] = path.split('|'); return dictar(b, ta, (val) => { grow(ta); editarArbol(S.vid, (x) => { x[+si].planos[+pi].items[+ii][f] = val.trim(); }); }); }
+    if ((b = g('[data-oadd]'))) { const [si, pi, k] = b.dataset.oadd.split('|'); let ii = 0; editarArbol(S.vid, (x) => { x[+si].planos[+pi].items.push(nuevoItem(k)); ii = x[+si].planos[+pi].items.length - 1; }); focus = firstEmpty(si, pi, ii, k); return paintTree(); }
+    if ((b = g('[data-np]'))) { const si = +b.dataset.np; let pi = 0; editarArbol(S.vid, (x) => { x[si].planos.push(nuevoPlano()); pi = x[si].planos.length - 1; }); focus = `[data-p="${si}|${pi}|desc"]`; return paintTree(); }
+    if ((b = g('[data-npd]'))) { const si = +b.dataset.npd; let pi = 0; editarArbol(S.vid, (x) => { const p = nuevoPlano(); p.items.push(nuevoItem('persona')); x[si].planos.push(p); pi = x[si].planos.length - 1; }); focus = `[data-i="${si}|${pi}|0|dice"]`; return paintTree(); }
     if ((b = g('[data-ee]'))) return escenaForm(+b.dataset.ee, paintTree);
-    if ((b = g('[data-pl]'))) { const [si, pi] = b.dataset.pl.split('|').map(Number); S.sel = [si, pi]; if (wide()) { paintTree(); paintSide(); } else planoSheet(si, pi, paintTree); return; }
-    if ((b = g('[data-np]'))) return elegirPlantilla(+b.dataset.np, (si, pi) => { paintTree(); S.sel = [si, pi]; if (wide()) paintSide(); else planoSheet(si, pi, paintTree); });
+    if ((b = g('[data-em]'))) return menuNodo('esc', [+b.dataset.em], paintTree);
+    if ((b = g('[data-pm]'))) return menuNodo('pl', b.dataset.pm.split('|').map(Number), paintTree);
+    if ((b = g('[data-im]'))) return menuNodo('it', b.dataset.im.split('|').map(Number), paintTree);
     const a = g('[data-a]')?.dataset.a;
     if (a === 'datos') return datosForm(() => repaint(api));
-    if (a === 'undo' && S.undo) { store.update('videos', S.vid, { escenas: S.undo }); S.undo = null; S.sel = null; paintTree(); paintSide(); toast('↶ Listo'); return; }
-    if (a === 'nesc') { const ne = nuevaEscena(); editarArbol(S.vid, (es) => es.push(ne)); S.open.add(ne.id); paintTree(); escenaForm(escenas(store.get('videos', S.vid)).length - 1, paintTree); return; }
+    if (a === 'undo' && S.undo) { store.update('videos', S.vid, { escenas: S.undo }); S.undo = null; paintTree(); toast('↶ Listo'); return; }
+    if (a === 'nesc') { let si = 0; editarArbol(S.vid, (x) => { x.push(nuevaEscena()); si = x.length - 1; }); focus = `[data-e="${si}|titulo"]`; return paintTree(); }
     if (a === 'pdf') return compartirGuion(store.get('videos', S.vid));
   };
 }
 function snap() { S.undo = copia(escenas(store.get('videos', S.vid))); clearTimeout(snap.t); snap.t = setTimeout(() => { S.undo = null; }, 15000); }
-function menuEscena(si, after) {
-  const es = escenas(store.get('videos', S.vid)); const body = h(`<div class="list">
-    <button class="list-item" data-m="up" ${si === 0 ? 'disabled' : ''}>⬆️ Subir</button><button class="list-item" data-m="down" ${si === es.length - 1 ? 'disabled' : ''}>⬇️ Bajar</button>
-    <button class="list-item" data-m="dup">⧉ Duplicar escena (con sus planos)</button><button class="list-item" data-m="del" style="color:var(--c-delete)">🗑 Borrar escena</button></div>`);
-  const s = sheet(`E${si + 1} · ${es[si].titulo || 'Escena'}`, body);
-  body.onclick = (e) => { const m = e.target.closest('[data-m]')?.dataset.m; if (!m) return;
-    snap(); editarArbol(S.vid, (x) => {
-      if (m === 'up') [x[si - 1], x[si]] = [x[si], x[si - 1]];
-      if (m === 'down') [x[si + 1], x[si]] = [x[si], x[si + 1]];
-      if (m === 'dup') { const c = copia(x[si]); c.id = uid(); c.planos.forEach((p) => { p.id = uid(); p.tomas = []; p.grabado = false; }); x.splice(si + 1, 0, c); }
-      if (m === 'del') x.splice(si, 1);
-    });
-    if (m !== 'del') S.undo = null; S.sel = null; s.close(); after();
-  };
-}
-function menuPlano(si, pi, after) {
-  const es = escenas(store.get('videos', S.vid)); const n = es[si].planos.length;
-  const body = h(`<div class="list"><button class="list-item" data-m="up" ${pi === 0 ? 'disabled' : ''}>⬆️ Subir</button><button class="list-item" data-m="down" ${pi === n - 1 ? 'disabled' : ''}>⬇️ Bajar</button>
-    <button class="list-item" data-m="dup">⧉ Duplicar plano</button>${es.length > 1 ? '<button class="list-item" data-m="mv">↪ Pasar a otra escena</button>' : ''}<button class="list-item" data-m="del" style="color:var(--c-delete)">🗑 Borrar plano</button></div>`);
-  const s = sheet(`${claq(si, pi)} · ${tipoL(es[si].planos[pi].tipo)}`, body);
-  body.onclick = (e) => { const m = e.target.closest('[data-m]')?.dataset.m; if (!m) return;
+// ⋮ de escena, plano o elemento: detalles, subir, bajar, duplicar, mover, borrar
+function menuNodo(tipo, [si, pi, ii], after) {
+  const es = escenas(store.get('videos', S.vid));
+  const lista = tipo === 'esc' ? es : tipo === 'pl' ? es[si].planos : itemsDe(es[si].planos[pi]);
+  const idx = tipo === 'esc' ? si : tipo === 'pl' ? pi : ii; const n = lista.length;
+  const titulo = tipo === 'esc' ? `E${si + 1}${es[si].titulo ? ' · ' + es[si].titulo : ''}` : tipo === 'pl' ? claq(si, pi) : `${ITEM[lista[ii].k][0]} ${ITEM[lista[ii].k][1]}`;
+  const body = h(`<div class="list">
+    ${tipo === 'esc' ? '<button class="list-item" data-m="det">📍 Lugar, fecha, luz y qué prepara el cliente</button>' : tipo === 'pl' ? '<button class="list-item" data-m="det">🎥 Tipo de plano, segundos y movimiento</button>' : ''}
+    <button class="list-item" data-m="up" ${idx === 0 ? 'disabled' : ''}>⬆️ Subir</button><button class="list-item" data-m="down" ${idx === n - 1 ? 'disabled' : ''}>⬇️ Bajar</button>
+    <button class="list-item" data-m="dup">⧉ Duplicar</button>${tipo === 'pl' && es.length > 1 ? '<button class="list-item" data-m="mv">↪ Pasar a otra escena</button>' : ''}
+    <button class="list-item" data-m="del" style="color:var(--c-delete)">🗑 Borrar</button></div>`);
+  const s = sheet(titulo, body);
+  const arr = (x) => (tipo === 'esc' ? x : tipo === 'pl' ? x[si].planos : x[si].planos[pi].items);
+  body.onclick = (e) => {
+    const t = e.target.closest('[data-to]'); if (t) { snap(); editarArbol(S.vid, (x) => { const [p] = x[si].planos.splice(pi, 1); x[+t.dataset.to].planos.push(p); }); S.undo = null; s.close(); return after(); }
+    const m = e.target.closest('[data-m]')?.dataset.m; if (!m) return;
+    if (m === 'det') { s.close(); return setTimeout(() => (tipo === 'esc' ? escenaForm(si, after) : planoDetalles(si, pi, after)), 280); }
     if (m === 'mv') { body.innerHTML = `<div class="list">${es.map((x, k) => (k === si ? '' : `<button class="list-item" data-to="${k}">E${k + 1} · ${esc(x.titulo || 'Escena ' + (k + 1))}</button>`)).join('')}</div>`; return; }
-    snap(); editarArbol(S.vid, (x) => { const P = x[si].planos;
-      if (m === 'up') [P[pi - 1], P[pi]] = [P[pi], P[pi - 1]];
-      if (m === 'down') [P[pi + 1], P[pi]] = [P[pi], P[pi + 1]];
-      if (m === 'dup') { const c = copia(P[pi]); c.id = uid(); c.tomas = []; c.grabado = false; P.splice(pi + 1, 0, c); }
-      if (m === 'del') P.splice(pi, 1);
+    snap(); editarArbol(S.vid, (x) => { const L = arr(x);
+      if (m === 'up') [L[idx - 1], L[idx]] = [L[idx], L[idx - 1]];
+      if (m === 'down') [L[idx + 1], L[idx]] = [L[idx], L[idx + 1]];
+      if (m === 'dup') { const c = copia(L[idx]); c.id = uid(); if (tipo === 'esc') c.planos.forEach((p) => { p.id = uid(); p.tomas = []; p.grabado = false; (p.items || []).forEach((i) => { i.id = uid(); }); }); if (tipo === 'pl') { c.tomas = []; c.grabado = false; (c.items || []).forEach((i) => { i.id = uid(); }); } L.splice(idx + 1, 0, c); }
+      if (m === 'del') L.splice(idx, 1);
     });
-    if (m !== 'del') S.undo = null; S.sel = null; s.close(); after();
+    if (m !== 'del') S.undo = null; s.close(); after();
   };
-  body.addEventListener('click', (e) => { const t = e.target.closest('[data-to]'); if (!t) return; snap(); editarArbol(S.vid, (x) => { const [p] = x[si].planos.splice(pi, 1); x[+t.dataset.to].planos.push(p); }); S.undo = null; S.sel = null; s.close(); after(); });
 }
-function elegirPlantilla(si, after) {
-  const body = h(`<div class="plt">${PLANT.map((p) => `<button data-k="${p.k}"><span>${p.e}</span><b>${p.l}</b><small>${p.d}</small></button>`).join('')}</div>`);
-  const s = sheet(`＋ Plano en E${si + 1}`, body);
-  body.onclick = (e) => { const b = e.target.closest('[data-k]'); if (!b) return; let pi = 0; editarArbol(S.vid, (x) => { x[si].planos.push(nuevoPlano(b.dataset.k)); pi = x[si].planos.length - 1; }); s.close(); setTimeout(() => after(si, pi), 280); };
+function planoDetalles(si, pi, after) {
+  const p = escenas(store.get('videos', S.vid))[si].planos[pi];
+  const f = h(`<form class="form" novalidate><div class="field"><label>Tipo de plano (opcional)</label><div class="picks">${PLANT.map((x) => `<button type="button" class="pick sm ${p.tipo === x.k ? 'on' : ''}" data-t="${x.k}">${x.e} ${x.l}</button>`).join('')}</div></div>
+    <div class="row" style="gap:10px;flex-wrap:nowrap"><div class="field" style="flex:0 0 100px"><label for="ps">Segundos</label><input id="ps" type="number" inputmode="numeric" min="0" max="120" value="${p.seg || ''}"></div><div class="field" style="flex:1"><label for="pm">Movimiento</label><select id="pm"><option value="">—</option>${MOVS.map((m) => `<option ${m === p.mov ? 'selected' : ''}>${m}</option>`).join('')}</select></div></div>
+    <label class="chkl"><input type="checkbox" id="pg" ${p.grabado ? 'checked' : ''}> Ya está grabado</label>
+    <div class="row end"><button class="btn btn-create">✓ Listo</button></div></form>`);
+  const s = sheet(`${claq(si, pi)} · detalles`, f); let tipo = p.tipo || '';
+  f.addEventListener('click', (e) => { const b = e.target.closest('[data-t]'); if (!b) return; tipo = tipo === b.dataset.t ? '' : b.dataset.t; f.querySelectorAll('[data-t]').forEach((x) => x.classList.toggle('on', x.dataset.t === tipo)); });
+  f.addEventListener('submit', (e) => { e.preventDefault(); editarArbol(S.vid, (x) => Object.assign(x[si].planos[pi], { tipo, seg: Number(f.querySelector('#ps').value) || 0, mov: f.querySelector('#pm').value, grabado: f.querySelector('#pg').checked })); s.close(); after(); });
 }
 function datosForm(after) {
   const v = store.get('videos', S.vid); const cs = store.list('clients');
   const f = h(`<form class="form" novalidate>
     <div class="field"><label for="vt">Nombre del video</label><input id="vt" value="${esc(v.title)}"></div>
-    <div class="field"><label for="vc">Cliente</label><select id="vc"><option value="">Sin cliente / NEXO PC</option>${cs.map((c) => `<option value="${c.id}" ${c.id === v.client ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="field"><label for="vc">Cliente</label><select id="vc"><option value="">Sin cliente / NEXO PC</option>${cs.map((c) => `<option value="${c.id}" ${c.id === v.client ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}<option value="__new">＋ Cliente nuevo…</option></select></div>
     <div class="field"><label for="vo">Objetivo</label><input id="vo" value="${esc(v.objetivo || '')}" placeholder="Llenar la agenda de diciembre"></div>
     <div class="row" style="gap:10px;flex-wrap:nowrap"><div class="field" style="flex:1"><label for="vd">Duración</label><input id="vd" value="${esc(v.duracion || '')}" placeholder="30 s"></div><div class="field" style="flex:1"><label for="vf">Formato</label><select id="vf">${['9:16', '1:1', '4:5', '16:9'].map((x) => `<option ${x === (v.formato || '9:16') ? 'selected' : ''}>${x}</option>`).join('')}</select></div><div class="field" style="flex:1.2"><label for="vdu">Entrega</label><input id="vdu" type="date" value="${esc(v.due || '')}"></div></div>
     <div class="field"><label for="vg">Gancho (primeros 3 s)</label><input id="vg" value="${esc(v.gancho || '')}" placeholder="¿Este corte en 20 minutos?"></div>
@@ -141,6 +171,8 @@ function datosForm(after) {
     <div class="field"><label>Etiquetas</label><div class="picks">${TAGS.map((t) => `<button type="button" class="pick sm ${(v.tags || '').includes(t) ? 'on' : ''}" data-tg="${t}">${t}</button>`).join('')}</div></div>
     <div class="row end"><button type="button" class="btn btn-delete ghost" data-a="del">🗑 Borrar video</button><button class="btn btn-create">✓ Guardar</button></div></form>`);
   const s = sheet('Datos del video', f);
+  f.addEventListener('change', (e) => { if (e.target.id !== 'vc' || e.target.value !== '__new') return; const sel = e.target; sel.value = v.client || '';
+    crearCliente((c) => { if (!c) return; const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.querySelector('[value="__new"]').before(o); sel.value = c.id; }); });
   f.addEventListener('click', async (e) => { const t = e.target.closest('[data-tg]'); if (t) t.classList.toggle('on');
     if (e.target.closest('[data-a=del]') && await confirmSheet('¿Borrar el video?', `${v.title} y su guion se borran.`, { yes: 'Borrar', danger: true })) { store.remove('videos', v.id); s.close(); history.back(); } });
   f.addEventListener('submit', (e) => { e.preventDefault(); const q = (id) => f.querySelector('#' + id).value.trim();
@@ -172,65 +204,6 @@ export function escenaForm(si, after, vid = S.vid) {
     editarArbol(vid, (x) => Object.assign(x[si], { titulo: q('et'), lugar, lugarTxt: q('elt') || (lugar ? '' : x[si].lugarTxt), fecha: q('ef'), hora: q('eh'), ambiente: q('ea'), luz: q('el'), utileria: q('eu'), vestuario: q('ev'), sonido: q('es'), prepara: q('ep') }));
     if (q('ef') && ['idea', 'guion'].includes(v.status || 'idea') && escenas(store.get('videos', vid)).some((x) => x.planos.length)) store.update('videos', vid, { status: 'grabar' });
     s.close(); after?.(); });
-}
-
-// ---------- editor de plano (hoja en el celular, panel al lado en el PC) ----------
-function planoSheet(si, pi, after) {
-  const body = h('<div class="pe"></div>');
-  const s = sheet(`${claq(si, pi)}`, body, { onClose: () => after() });
-  planoEditor(body, si, pi, { onChange: () => {}, onTitle: (t) => { s.el.querySelector('.sheet-head h2').textContent = t; } });
-}
-const get = (o, path) => path.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
-const set = (o, path, val) => { const ks = path.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => (a[k] = a[k] ?? (/^\d+$/.test(k) ? [] : {})), o); t[last] = val; };
-export function planoEditor(el, si, pi, { onChange = () => {}, onTitle } = {}) {
-  const P = () => escenas(store.get('videos', S.vid))[si]?.planos[pi];
-  const upd = (fn) => { editarArbol(S.vid, (x) => fn(x[si].planos[pi])); onChange(); };
-  const paint = () => {
-    const p = P(); if (!p) { el.innerHTML = '<p class="muted">Ese plano ya no existe.</p>'; return; }
-    const e = escenas(store.get('videos', S.vid))[si];
-    onTitle?.(`${claq(si, pi)} · ${tipoL(p.tipo)}`);
-    const pick = (path, opts) => `<div class="picks">${opts.map(([v, l]) => `<button type="button" class="pick sm ${get(p, path) === v ? 'on' : ''}" data-pk="${path}" data-v="${esc(v)}">${l}</button>`).join('')}</div>`;
-    el.innerHTML = `<div class="form pform2">
-      ${wide() && el.id === 'gr' ? `<h3 style="margin:0">${claq(si, pi)} · ${esc(tipoL(p.tipo))}</h3>` : ''}
-      ${pick('tipo', PLANT.map((x) => [x.k, x.e + ' ' + x.l]))}
-      <div class="row" style="gap:10px;flex-wrap:nowrap"><div class="field" style="flex:0 0 90px"><label>Segundos</label><input type="number" inputmode="numeric" min="1" max="120" data-f="seg" value="${esc(p.seg || '')}"></div><div class="field" style="flex:1"><label>Movimiento</label><select data-f="mov">${MOVS.map((m) => `<option ${m === p.mov ? 'selected' : ''}>${m}</option>`).join('')}</select></div></div>
-      <div class="field"><label>Qué se ve</label><div class="mic-in"><textarea rows="2" data-f="desc" placeholder="Juan peina al cliente frente al espejo">${esc(p.desc || '')}</textarea><button type="button" class="mic-b" data-mic="desc" aria-label="Dictar">🎙</button></div></div>
-      <details class="sec2" ${p.mapa?.length || (wide() && el.id === 'gr') ? 'open' : ''}><summary>🗺 Mapa visual ${p.mapa?.length ? `<span class="muted">(${p.mapa.length})</span>` : ''}</summary><div class="mapw"></div></details>
-      <details class="sec2" ${p.cam?.donde || p.cam?.mira ? 'open' : ''}><summary>📷 Cámara</summary>
-        <div class="field"><label>Dónde se ubica</label><input data-f="cam.donde" value="${esc(p.cam?.donde || '')}" placeholder="En la puerta, a 1,5 m"></div>
-        <div class="field"><label>Qué mira</label><input data-f="cam.mira" value="${esc(p.cam?.mira || '')}" placeholder="La silla del fondo"></div>
-        <label class="lbl2">Altura</label>${pick('cam.altura', [['baja', 'Baja'], ['pecho', 'Pecho'], ['ojos', 'Ojos'], ['arriba', 'Desde arriba']])}
-        <label class="lbl2">Zoom</label>${pick('cam.zoom', [['0.5x', '0.5x'], ['1x', '1x'], ['2x', '2x'], ['3x', '3x']])}
-        <label class="lbl2">Soporte</label>${pick('cam.soporte', [['trípode', 'Trípode'], ['mano', 'En mano'], ['gimbal', 'Gimbal']])}</details>
-      <details class="sec2" ${p.personas?.length ? 'open' : ''}><summary>🧍 Persona(s) ${p.personas?.length ? `<span class="muted">(${p.personas.length})</span>` : ''}</summary>
-        ${(p.personas || []).map((q, k) => `<div class="pers"><div class="row" style="justify-content:space-between"><input data-f="personas.${k}.nombre" value="${esc(q.nombre || '')}" placeholder="Nombre (Juan, el dueño…)" class="pn"><button type="button" class="km" data-delp="${k}" aria-label="Quitar persona">🗑</button></div>
-          <div class="field"><label>Qué dice</label><div class="mic-in"><textarea rows="2" data-f="personas.${k}.dice" placeholder="Diciembre se llena, aparta tu turno">${esc(q.dice || '')}</textarea><button type="button" class="mic-b" data-mic="personas.${k}.dice" aria-label="Dictar">🎙</button></div></div>
-          <div class="row" style="gap:8px;flex-wrap:nowrap"><input data-f="personas.${k}.donde" value="${esc(q.donde || '')}" placeholder="Dónde está"><input data-f="personas.${k}.hace" value="${esc(q.hace || '')}" placeholder="Qué hace"></div>
-          <input data-f="personas.${k}.expresion" value="${esc(q.expresion || '')}" placeholder="Expresión (sonriente, serio…)" style="margin-top:6px"></div>`).join('')}
-        <button type="button" class="btn btn-create ghost sm" data-a="np">＋ Persona</button></details>
-      <div class="field"><label>🔤 En pantalla (Filmora)</label><input data-f="pantalla" value="${esc(p.pantalla || '')}" placeholder="Diciembre lleno 🔥"></div>
-      <div class="field"><label>✅ Tomas <span class="muted">(toca la buena)</span></label><div class="picks">${(p.tomas || []).map((t) => `<button type="button" class="pick sm ${t.buena ? 'on' : ''}" data-tk="${t.n}">T${t.n}${t.buena ? ' ✓' : ''}</button>`).join('')}<button type="button" class="pick sm add" data-a="nt">＋ toma</button></div></div>
-      <label class="chkl"><input type="checkbox" data-a="gb" ${p.grabado ? 'checked' : ''}> Grabado</label>
-    </div>`;
-    const mw = el.querySelector('.mapw');
-    const base = store.get('lugares', e.lugar)?.mapa || [];
-    mapaEditor(mw, p.mapa || [], (items) => upd((x) => { x.mapa = items; }), { base });
-  };
-  paint();
-  el.onchange = (ev) => {
-    const f = ev.target.dataset.f;
-    if (f) { const val = ev.target.type === 'number' ? Number(ev.target.value) || 0 : ev.target.value.trim(); upd((x) => set(x, f, val)); return; }
-    if (ev.target.dataset.a === 'gb') upd((x) => { x.grabado = ev.target.checked; });
-  };
-  el.onclick = (ev) => {
-    const g = (s) => ev.target.closest(s); let b;
-    if ((b = g('[data-pk]'))) { const path = b.dataset.pk; const v = b.dataset.v; upd((x) => { set(x, path, get(x, path) === v && path !== 'tipo' ? '' : v); if (path === 'tipo' && !x.seg) x.seg = PLANT.find((t) => t.k === v)?.seg || 3; }); return paint(); }
-    if ((b = g('[data-mic]'))) { const path = b.dataset.mic; const ta = el.querySelector(`[data-f="${path}"]`); return dictar(b, ta, (val) => upd((x) => set(x, path, val.trim()))); }
-    if (g('[data-a=np]')) { upd((x) => { x.personas = [...(x.personas || []), { nombre: '', dice: '', donde: '', hace: '', expresion: '' }]; }); return paint(); }
-    if ((b = g('[data-delp]'))) { const k = +b.dataset.delp; upd((x) => x.personas.splice(k, 1)); return paint(); }
-    if (g('[data-a=nt]')) { upd((x) => { x.tomas = [...(x.tomas || []), { n: (x.tomas?.length || 0) + 1, buena: false }]; }); return paint(); }
-    if ((b = g('[data-tk]'))) { const n = +b.dataset.tk; upd((x) => { x.tomas = x.tomas.map((t) => ({ ...t, buena: t.n === n ? !t.buena : false })); }); return paint(); }
-  };
 }
 
 // ---------- 📍 Grabar ----------
@@ -298,4 +271,4 @@ function tabEntregar(el, api) {
     if (a === 'wa') { const link = el.querySelector('#dl').value.trim(); window.open(wa(c?.contact, `Hola ${c?.name || ''} 👋 ¡Tu video "${v.title}" está listo! ${link ? '👉 ' + link : ''}\n\nTexto sugerido para publicarlo:\n${el.querySelector('#dc').value}\n\nSi quieres algún ajuste me dices.`), '_blank', 'noopener'); if (estIdx(v.status) < 4) store.update('videos', v.id, { status: 'entregar' }); }
     if (a === 'pub') { store.update('videos', v.id, { status: 'publicado', publishDate: el.querySelector('#dp').value || fmt.today(), link: el.querySelector('#dl').value.trim(), copy: el.querySelector('#dc').value }); toast('✅ Publicado. En 7 días te pido vistas y likes'); repaint(api); } };
 }
-export { S as estadoVideo, mapaHtml };
+export { S as estadoVideo };

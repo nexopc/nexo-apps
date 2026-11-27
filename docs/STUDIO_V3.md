@@ -58,3 +58,9 @@ Acento rosa `#FF4F9A`, tema oscuro, mismo tamaño que los bocetos (`studio-estil
 - **Fotos** (lugares y referencias): en Supabase Storage, bucket privado por usuario (RLS `auth.uid()`), comprimidas en el dispositivo (~1280 px, JPG).
 - **Números**: videos entregados del mes (por cliente y total), horas por video (guion + grabar + editar), lo que mejor funciona (etiquetas/tipos con más vistas), ideas usadas.
 - **Misiones de Studio** (mismo motor `core/misiones.js`): terminar guion, editar lo que se entrega pronto, preparar grabación, anotar resultados; entran en ⚡ Organizar.
+
+## Cambios (27 nov 2026, después de usarla)
+- **Clientes desde Studio**: ⋯ Más → 👥 Clientes, "＋ Cliente nuevo" al crear un video y en los datos del video (son los mismos de Negocios; nombre, WhatsApp, tipo de negocio y color).
+- **Guion = esquema libre**: ＋ Escena, ＋ Plano, ＋ 🧍 Diálogo, 📷 Cámara, 🗺 Mapa, 🔤 Texto, 📝 Nota en el orden que quiera, **sin llenar nada**; todo se escribe ahí mismo (nombre de escena, quién habla, qué dice…) cuando lo sepa. ⋮ en cada cosa: subir, bajar, duplicar, borrar (con deshacer); en plano también tipo/segundos/movimiento; en escena lugar/fecha.
+- **Mapa por plano**: cada plano puede tener su mapa (y usar el mapa base del lugar como punto de partida).
+- Modelo: el plano guarda sus elementos en `items` en orden (`persona`, `camara`, `mapa`, `pantalla`, `nota`); los planos viejos se convierten solos.

@@ -1,7 +1,7 @@
 // 📄 PDFs para el cliente: guion (escenas + lo que se dice + cuándo se graba y qué preparar) y plan del mes.
 import { store, fmt, toast } from '../../core/shell.js';
 import { crearPDF, compartirPDF } from '../../core/pdf.js';
-import { escenas, lugarName, tipoL, letra, cname, EST, estIdx } from './datos.js';
+import { escenas, lugarName, tipoL, letra, cname, EST, estIdx, personasDe, pantallasDe } from './datos.js';
 
 const ROSA = '#D6337A', GRIS = '#5A6375';
 const firma = () => store.get('config', 'cobro')?.nombre || 'NEXO';
@@ -22,9 +22,9 @@ export async function compartirGuion(v) {
     const meta = [lugarName(e) && 'Lugar: ' + lugarName(e), e.fecha && 'Grabación: ' + fmt.date(e.fecha) + (e.hora ? ' ' + e.hora : ''), e.ambiente].filter(Boolean).join('   ·   ');
     if (meta) d.text(meta, { size: 9.5, color: GRIS });
     e.planos.forEach((p, pi) => {
-      d.space(3).text(`${letra(pi)}. ${tipoL(p.tipo)}${p.seg ? ' (' + p.seg + ' s)' : ''}${p.desc ? ': ' + p.desc : ''}`, { size: 10.5, bold: true });
-      (p.personas || []).filter((q) => q.dice).forEach((q) => d.text(`${q.nombre || 'Persona'} dice: “${q.dice}”`, { size: 10.5, x: 64, maxW: 470 }));
-      if (p.pantalla) d.text(`En pantalla: “${p.pantalla}”`, { size: 10, color: GRIS, x: 64, maxW: 470 });
+      d.space(3).text(`${letra(pi)}. ${p.tipo ? tipoL(p.tipo) : 'Plano'}${p.seg ? ' (' + p.seg + ' s)' : ''}${p.desc ? ': ' + p.desc : ''}`, { size: 10.5, bold: true });
+      personasDe(p).filter((q) => q.dice).forEach((q) => d.text(`${q.nombre || 'Persona'} dice: “${q.dice}”`, { size: 10.5, x: 64, maxW: 470 }));
+      pantallasDe(p).forEach((t) => d.text(`En pantalla: “${t}”`, { size: 10, color: GRIS, x: 64, maxW: 470 }));
     });
   });
   const graba = es.filter((e) => e.fecha || e.prepara);

@@ -178,12 +178,14 @@ export function renderList(el, mod) {
 // ---------- Actualizaciones independientes por app ----------
 async function checkUpdate(appId, installed) {
   try {
-    const r = await fetch('version.json', { cache: 'no-store' });
-    const v = await r.json();
-    return { latest: v.version, notes: v.notes || '', has: v.version !== installed };
+    const [r, rc] = await Promise.all([fetch('version.json', { cache: 'no-store' }), fetch('../../core/version.json', { cache: 'no-store' })]);
+    const v = await r.json(); const vc = rc.ok ? await rc.json() : { version: '' };
+    const coreNew = !!vc.version && vc.version !== prefs.get('ver:core');
+    return { latest: v.version, core: vc.version, notes: v.notes || '', has: v.version !== installed || coreNew, coreNew };
   } catch { return { latest: installed, has: false, offline: true }; }
 }
-async function doUpdate(appId, latest) {
+async function doUpdate(appId, latest, core) {
+  if (core) prefs.set('ver:core', core);
   const reg = await navigator.serviceWorker?.getRegistration();
   reg?.active?.postMessage({ type: 'purge', scope: appId });
   // borra solo la caché de ESTA app → las demás apps y Harvey no se tocan
@@ -247,7 +249,7 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
   applyPlatform(); applyTheme();
   document.documentElement.style.setProperty('--accent', app.accent);
   document.title = app.name;
-  if (!prefs.get('ver:' + appId)) prefs.set('ver:' + appId, version);
+  prefs.set('ver:' + appId, version); // con red primero, la versión que corre es la instalada
   await lockScreen({ title: app.name, logo: LOGOS[app.id] || LOGOS.custom });
   if (cloud.available()) cloud.init().catch(() => {});
 
@@ -343,7 +345,7 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
       const u = await checkUpdate(appId, prefs.get('ver:' + appId));
       if (u.offline) return toast('Sin internet: no se pudo buscar actualización');
       if (!u.has) return toast(`${app.name} está al día (v${u.latest})`);
-      if (await confirmSheet('Actualizar ' + app.name, `Nueva versión ${u.latest}. ${u.notes} Se actualiza esta app y el núcleo compartido; tus datos no cambian.`, { yes: 'Actualizar', no: 'Después' })) doUpdate(appId, u.latest);
+      if (await confirmSheet('Actualizar ' + app.name, `${u.latest !== prefs.get('ver:' + appId) ? 'Nueva versión ' + u.latest + '. ' + u.notes : 'Hay mejoras en el núcleo compartido (atrás, notas, cronómetro, avisos).'} Se actualiza esta app y el núcleo; tus datos no cambian.`, { yes: 'Actualizar', no: 'Después' })) doUpdate(appId, u.latest, u.core);
     }
   });
   fab.onclick = addCurrent;
@@ -380,7 +382,12 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
   // Los cerebros revisan tus apps y dejan su reporte del día (una vez al día, sin gastar IA)
   setTimeout(() => import('./avisos.js').then((m) => m.dailyReport()).catch(() => {}), 6000);
   checkUpdate(appId, prefs.get('ver:' + appId)).then((u) => { if (u.has) $('[data-a=update] .badge').hidden = false; });
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('../../sw.js', { scope: '../../' }).catch(() => {});
+  if ('serviceWorker' in navigator) {
+    // Cuando llega una versión nueva del service worker, recargar UNA vez para estrenarla
+    const had = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register('../../sw.js', { scope: '../../' }).then((r) => r.update().catch(() => {})).catch(() => {});
+  }
   return api;
 }
 

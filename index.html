@@ -73,8 +73,7 @@
   document.getElementById('today').textContent = fmt.day();
 
   const stat = {
-    plan: () => { const n = store.list('tareas').filter((t) => !t.done).length; return n ? `<strong>${n}</strong> tareas pendientes` : 'Tu horario, proyectos y tareas'; },
-    planclasico: () => 'Tu app anterior · sigue funcionando',
+    plan: () => { const n = store.list('tareas').filter((t) => !t.done).length; const p = store.raw('planBridge')[0]; return n ? `<strong>${n}</strong> tareas pendientes` : p ? `<strong>${(p.hoy || []).filter((b) => b.cat !== 'libre' && b.cat !== 'dormir').length}</strong> bloques hoy` : 'Tu horario, proyectos y tareas'; },
     finanzas: () => { const m = fmt.today().slice(0, 7); const tx = store.list('transactions').filter((t) => (t.date || '').startsWith(m)); const g = tx.filter((t) => t.type === 'gasto').reduce((a, t) => a + (+t.amount || 0), 0); return `<strong>${fmt.money(g)}</strong> gastado este mes`; },
     negocios: () => { const n = store.list('jobs').filter((j) => !['pagado'].includes(j.status)).length; return `<strong>${n}</strong> trabajos activos`; },
     studio: () => { const n = store.list('videos').filter((v) => v.status !== 'publicado').length; return `<strong>${n}</strong> videos en proceso`; },
@@ -107,7 +106,8 @@
   }
   document.getElementById('upcore').onclick = async () => {
     if (!(await confirmSheet('Actualizar núcleo', 'Descarga la versión más nueva del diseño, la seguridad y Harvey. Tus datos no se tocan.', { yes: 'Actualizar' }))) return;
-    if (window.caches) await caches.delete('nexo-core');
+    if (window.caches) for (const k of await caches.keys()) await caches.delete(k); // el Hub limpia TODO (núcleo y apps de este navegador)
+    const reg = await navigator.serviceWorker?.getRegistration(); await reg?.update().catch(() => {});
     location.reload();
   };
   document.getElementById('devices').onclick = () => {
@@ -129,7 +129,11 @@
     chip.style.cursor = 'pointer';
     chip.onclick = () => (cloud.user() ? openSettings() : cloud.signIn().catch((e) => toast(e.message || 'No se pudo entrar')));
   }
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    const had = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js').then((r) => r.update().catch(() => {})).catch(() => {});
+  }
 </script>
 </body>
 </html>

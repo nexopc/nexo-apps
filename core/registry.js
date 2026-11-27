@@ -18,8 +18,8 @@ export const LOGOS = {
 };
 
 export const APPS = [
-  { id: 'plan', name: 'NEXO Plan', tagline: 'tu tiempo', accent: '#00E5FF', path: 'apps/plan/',
-    cols: ['bloques', 'agenda', 'proyectos', 'tareas'], brain: 'Donna' },
+  { id: 'plan', name: 'NEXO Plan', tagline: 'tu tiempo', accent: '#00E5FF', path: PLAN_URL, external: true,
+    cols: ['proyectos', 'tareas', 'planBridge'], brain: 'Donna' },
   { id: 'finanzas', name: 'NEXO Finanzas', tagline: 'tu plata', accent: '#1CE783', path: 'apps/finanzas/',
     cols: ['accounts', 'transactions', 'budgets', 'savings', 'subscriptions', 'alerts'], brain: 'Louis' },
   { id: 'negocios', name: 'NEXO Negocios', tagline: 'tu trabajo', accent: '#FF8A1F', path: 'apps/negocios/',
@@ -28,8 +28,6 @@ export const APPS = [
     cols: ['videos', 'ideas', 'scripts', 'shoots', 'contentPlans', 'clips', 'references', 'metrics', 'portfolio'], brain: 'Mike' },
   { id: 'aprende', name: 'NEXO Aprende', tagline: 'tu estudio', accent: '#FFC23D', path: 'apps/aprende/',
     cols: ['topics', 'subjects', 'grades', 'exams', 'routes', 'english', 'flashcards', 'notes'], brain: 'Mike' },
-  { id: 'planclasico', name: 'NEXO PLAN clásico', tagline: 'tu app anterior (sigue funcionando)', accent: '#5E7A86', path: PLAN_URL, external: true,
-    cols: ['planBridge'], brain: 'Donna', legacy: true },
   { id: 'harvey', name: 'Harvey', tagline: 'tu asistente', accent: '#F5B83D', path: 'apps/harvey/',
     cols: ['chat', 'memoria'], brain: 'Jessica' },
 ];

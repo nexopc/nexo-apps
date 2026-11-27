@@ -5,7 +5,7 @@ import { fx, money, balances } from '../../core/fx.js';
 import { registrar, accIcon } from './registrar.js';
 { const st = document.createElement('style'); st.textContent = P10_CSS; document.head.appendChild(st); }
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const month = () => fmt.today().slice(0, 7);
 const sum = (arr) => arr.reduce((a, t) => a + (Number(t.amount) || 0), 0);
 const txMonth = (m = month()) => store.list('transactions').filter((t) => (t.date || '').startsWith(m));

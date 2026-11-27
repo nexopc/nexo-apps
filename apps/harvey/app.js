@@ -4,7 +4,7 @@ import { cloud } from '../../core/sync.js';
 import { APPS, LOGOS } from '../../core/registry.js';
 import { SCHEMA } from '../../core/schema.js';
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const initialQ = location.hash.startsWith('#q=') ? decodeURIComponent(location.hash.slice(3)) : '';
 if (initialQ) history.replaceState(null, '', '#home');
 const harvey = () => import('../../core/harvey.js');
@@ -72,7 +72,7 @@ const vida = { id: 'vida', title: 'Mi vida', icon: '📈',
     const tx = store.list('transactions').filter((t) => inW(t.date));
     const sum = (k) => tx.filter((t) => t.type === k).reduce((a, t) => a + (+t.amount || 0), 0);
     let blocks = 0, done = 0;
-    for (let i = 0; i < 7; i++) { const d = P.addDays(mon, i); if (d > fmt.today()) break; const bs = P.dayBlocks(d); blocks += bs.length; done += bs.filter((b) => b.done).length; }
+    for (const w of (store.raw('planBridge')[0]?.cumplimiento_semana || [])) if (inW(w.fecha) && w.fecha <= fmt.today()) { blocks += Number(w.bloques) || 0; done += Number(w.hechos) || 0; } // de NEXO PLAN
     const tareas = store.list('tareas').filter((t) => t.done && inW((t.doneAt || '').slice(0, 10))).length;
     const vids = store.list('videos').filter((v) => v.status === 'publicado' && inW(v.publishDate)).length;
     const regs = store.list('registroDiario').filter((r) => inW(r.date));

@@ -25,7 +25,7 @@ export function planForm(svc, { nuevoServicio = false, source = '', name = '' } 
   const read = () => {
     const v = (id) => body.querySelector('#' + id)?.value;
     if (body.querySelector('#pn')) S.name = v('pn').trim();
-    S.plan = v('pp').trim(); S.desc = v('pd'); S.noIncluye = v('pni'); S.entrega = v('pe').trim(); S.anticipo = Number(v('pa')) || 0;
+    S.plan = v('pp').trim(); S.desc = v('pd'); S.noIncluye = v('pni'); S.entrega = v('pe').trim(); S.anticipo = Number(v('pa')) || 0; S.videos = Math.max(0, Math.min(60, Number(v('pv')) || 0));
     S.price = Number(v('px')) || 0;
     S.extras = [...body.querySelectorAll('.exrow')].map((r) => ({ name: r.querySelector('.exn').value.trim(), price: Number(r.querySelector('.exp').value) || 0 })).filter((x) => x.name);
   };
@@ -42,6 +42,7 @@ export function planForm(svc, { nuevoServicio = false, source = '', name = '' } 
       <div class="field"><label for="pni">Qué NO incluye</label><textarea id="pni" rows="2" placeholder="Pauta pagada, fotos profesionales…">${esc(S.noIncluye)}</textarea></div>
       <div class="seg" data-g="men"><button type="button" data-v="0" aria-pressed="${!S.mensual}">Pago único</button><button type="button" data-v="1" aria-pressed="${!!S.mensual}">Mensual</button></div>
       <div class="row" style="gap:10px;flex-wrap:nowrap"><div class="field" style="flex:1"><label for="pa">Anticipo %</label><input id="pa" type="number" inputmode="numeric" min="0" max="100" value="${S.anticipo}"></div><div class="field" style="flex:1.4"><label for="pe">Tiempo de entrega</label><input id="pe" value="${esc(S.entrega)}" placeholder="5 días hábiles"></div></div>
+      <div class="field"><label for="pv">🎬 Videos que incluye <span class="muted">(Studio los crea solos al aprobar)</span></label><input id="pv" type="number" inputmode="numeric" min="0" max="60" value="${Number(S.videos) || ''}" placeholder="0 = no es de video"></div>
       <div class="calc"><b class="ct">🧮 Calculadora <span class="muted">· tu hora mínima ${money(minHora())}</span></b>
         ${[['hours', '⏱ Horas reales', 0.5, (x) => x + ' h'], ['costos', '💸 Costos (datos, transporte, materiales)', 5000, money], ['margen', '📈 Ganancia extra', 5, (x) => x + ' %']].map(([k, l, st, f]) => `<div class="qrow"><span>${l}</span><div class="stp"><button type="button" data-c="${k}" data-d="${-st}" aria-label="Menos">−</button><b class="num">${f(k === 'margen' ? margen : S[k])}</b><button type="button" data-c="${k}" data-d="${st}" aria-label="Más">＋</button></div></div>`).join('')}
         <div class="qrow"><span class="muted">Mínimo <b class="num" style="color:var(--fg)">${money(minimo)}</b></span><span class="muted">Sugerido <b class="num up">${money(sug)}</b> <button type="button" class="linkish" data-a="usar">usar</button></span></div></div>
@@ -74,7 +75,7 @@ export function planForm(svc, { nuevoServicio = false, source = '', name = '' } 
     if (!S.plan) return toast('Ponle nombre al plan');
     const minimo = Math.round(S.hours * minHora() + S.costos);
     if (!S.price) S.price = Math.ceil(minimo * (1 + margen / 100) / 1000) * 1000;
-    const data = { source: S.source, name: S.name, plan: S.plan, desc: S.desc, noIncluye: S.noIncluye, mensual: !!S.mensual, anticipo: S.anticipo, entrega: S.entrega, hours: S.hours, costos: S.costos, price: S.price, extras: S.extras };
+    const data = { source: S.source, name: S.name, plan: S.plan, desc: S.desc, noIncluye: S.noIncluye, mensual: !!S.mensual, anticipo: S.anticipo, entrega: S.entrega, videos: Number(S.videos) || 0, hours: S.hours, costos: S.costos, price: S.price, extras: S.extras };
     svc ? store.update('services', svc.id, data) : store.add('services', data);
     toast(S.price < minimo ? '⚠ Guardado, pero está por debajo de tu mínimo' : '✓ Plan guardado'); s.close(); after?.();
   });

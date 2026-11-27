@@ -1,4 +1,4 @@
-// 🎯 Misiones secundarias: pasos concretos para cumplir la meta del día. 100 % automáticas.
+// 🎯 Misiones secundarias: pasos concretos para cumplir la meta del día (Negocios + Studio). 100 % automáticas.
 // - Cada día (también días futuros, cuando NEXO PLAN organiza la semana) se arman de tus datos:
 //   cobrar saldos, seguir cotizaciones sin respuesta, prospectos con paso para ese día, entregas cercanas,
 //   contactos que faltan para la meta y cotizar a prospectos calientes.
@@ -78,6 +78,15 @@ export function candidatas(date = fmt.today()) {
   // 6) Cotizar a un prospecto caliente sin cotización
   const cal = store.list('prospects').filter((p) => p.temp === 'caliente' && !['ganado', 'perdido'].includes(p.stage) && !store.list('cotizaciones').some((q) => q.prospect === p.id)).sort((a, b) => (Number(b.potential) || 0) - (Number(a.potential) || 0))[0];
   if (cal) add('cotizar-' + cal.id, { type: 'cotizar', title: `🧮 Envíale una cotización a ${cal.name}`, ref: { col: 'prospects', id: cal.id }, prospect: cal.id, minutes: 20, prio: 65, value: Number(cal.potential) || 0 });
+  // 7) Studio: guion, edición, preparar grabación y resultados
+  for (const v of store.list('videos')) {
+    const st = v.status || 'idea'; const k = v.due ? daysBetween(date, v.due) : 99;
+    if (['idea', 'guion'].includes(st) && k <= 3 && k >= 0) add('guion-' + v.id, { type: 'guion', title: `📝 Termina el guion de ${v.title}`, ref: { col: 'videos', id: v.id }, client: v.client, minutes: 40, prio: 80 + (3 - k) * 2 });
+    if (['grabar', 'editar'].includes(st) && k <= 1 && k >= 0) add('editar-' + v.id, { type: 'editar', title: `✂️ Edita ${v.title} (se entrega ${k === 0 ? 'hoy' : 'mañana'})`, ref: { col: 'videos', id: v.id }, client: v.client, minutes: 90, prio: 87 });
+    const man = addDays(date, 1);
+    (v.escenas || []).filter((e) => e.fecha === man).slice(0, 1).forEach(() => add('preparar-' + v.id + '-' + man, { type: 'preparar', title: `🎒 Prepara la grabación de mañana: ${v.title}`, ref: { col: 'videos', id: v.id }, client: v.client, minutes: 15, prio: 74 }));
+    if (st === 'publicado' && v.publishDate && daysBetween(v.publishDate, date) >= 7 && !(v.results && v.results.views != null)) add('resultados-' + v.id, { type: 'resultados', title: `📊 Anota vistas y likes de ${v.title}`, ref: { col: 'videos', id: v.id }, client: v.client, minutes: 5, prio: 58 });
+  }
   return out.sort((a, b) => b.prio - a.prio);
 }
 
@@ -106,6 +115,8 @@ function cumplida(m) {
   if (m.type === 'prospecto') { const p = store.get('prospects', r.id); return !!p && (['ganado', 'perdido'].includes(p.stage) || (p.lastAt || '') >= m.date || (p.nextDate || '') > m.date); }
   if (m.type === 'entrega') { const j = store.get('jobs', r.id); return !!j && ['entregado', 'pagado'].includes(j.status); }
   if (m.type === 'contactos') return (Number(regDe(m.date).contactos) || 0) >= (m.goal || contactosMeta());
+  if (['guion', 'editar', 'resultados'].includes(m.type)) { const v = store.get('videos', r.id); if (!v) return false; const ord = ['idea', 'guion', 'grabar', 'editar', 'entregar', 'publicado'].indexOf(v.status || 'idea');
+    return m.type === 'guion' ? ord >= 2 : m.type === 'editar' ? ord >= 4 : !!(v.results && v.results.views != null); }
   if (m.type === 'cotizar') return store.list('cotizaciones').some((q) => q.prospect === r.id && ['enviada', 'aprobada'].includes(q.status));
   return false;
 }
@@ -113,4 +124,4 @@ export function revisar() {
   for (const m of store.list('misiones')) if (!m.done && m.auto && cumplida(m)) store.update('misiones', m.id, { done: true, doneAt: new Date().toISOString(), sola: true });
 }
 let t = 0;
-store.subscribe('*', (col) => { if (['abonos', 'cotizaciones', 'prospects', 'jobs', 'registroDiario', 'invoices'].includes(col)) { clearTimeout(t); t = setTimeout(revisar, 200); } });
+store.subscribe('*', (col) => { if (['abonos', 'cotizaciones', 'prospects', 'jobs', 'registroDiario', 'invoices', 'videos'].includes(col)) { clearTimeout(t); t = setTimeout(revisar, 200); } });

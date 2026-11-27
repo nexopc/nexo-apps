@@ -29,6 +29,7 @@ function misionesClick(e, api) {
   const c = e.target.closest('[data-mis]'); if (c) { const m = store.get('misiones', c.dataset.mis); marcar(m.id, !m.done); navigator.vibrate?.(10); if (!m.done) toast('🎯 ¡Misión cumplida!'); return true; }
   const g = e.target.closest('[data-mgo]');
   if (g) { const m = store.get('misiones', g.dataset.mgo); const r = m?.ref || {};
+    if (r.col === 'videos') { location.href = '../studio/'; return true; }
     if (m.client) { fichaCliente(m.client); return true; }
     if (m.prospect || r.col === 'prospects') { fichaProspecto(m.prospect || r.id); return true; }
     if (m.type === 'contactos') { api.go('midia'); return true; } return true; }

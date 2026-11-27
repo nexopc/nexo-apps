@@ -39,8 +39,20 @@ export function avisos(now = new Date()) {
   store.list('jobs').filter((x) => x.due && x.due <= t && !['entregado', 'pagado'].includes(x.status)).forEach((x) => add('harvey', 'alta', '🛠', `Entrega ${x.due < t ? 'atrasada' : 'para hoy'}: ${x.title}.`, 'negocios'));
   store.list('prospects').filter((x) => x.nextDate && x.nextDate <= t && !['ganado', 'perdido'].includes(x.stage)).forEach((x) => add('harvey', 'media', '🎯', `Seguimiento pendiente: ${x.name}${x.next ? ' — ' + x.next : ''}.`, 'negocios'));
   if (now.getHours() >= 20 && store.list('config').some((c) => c.id === 'plan10m') && !store.list('registroDiario').some((r) => r.date === t)) add('harvey', 'media', '📒', 'No has llenado el registro de ventas de hoy (2 minutos).', 'negocios');
-  // ---- Studio
+  // ---- Studio (videos de clientes)
   store.list('shoots').filter((x) => x.date === t).forEach((x) => add('mike', 'media', '🎬', `Grabación hoy: ${x.title}${x.time ? ' a las ' + x.time : ''}.`, 'studio'));
+  const lug = (id) => store.get('lugares', id)?.name || '';
+  const manana = (() => { const d = new Date(t + 'T12:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+  for (const v of store.list('videos')) {
+    for (const e of v.escenas || []) {
+      if (e.fecha === t) add('mike', 'media', '🎬', `Hoy grabas ${v.title}${e.hora ? ' a las ' + e.hora : ''}${lug(e.lugar) || e.lugarTxt ? ' en ' + (lug(e.lugar) || e.lugarTxt) : ''}.`, 'studio');
+      if (e.fecha === manana) add('mike', 'media', '🎒', `Mañana grabas ${v.title}: carga batería, lleva trípode y luz${e.prepara ? '. El cliente prepara: ' + e.prepara : ''}.`, 'studio');
+    }
+    if (v.due && dd(v.due, t) <= 1 && dd(v.due, t) >= 0 && ['idea', 'guion', 'grabar', 'editar'].includes(v.status || 'idea')) add('harvey', 'alta', '✂️', `${v.title} se entrega ${v.due === t ? 'HOY' : 'mañana'} y va en ${v.status || 'idea'}.`, 'studio');
+    if (v.status === 'publicado' && v.publishDate && dd(t, v.publishDate) >= 7 && !(v.results && v.results.views != null)) add('mike', 'baja', '📊', `Anota vistas y likes de ${v.title} (ya pasaron 7 días).`, 'studio');
+  }
+  const viejas = store.list('ideas').filter((i) => !i.video && (i.createdAt || '').slice(0, 10) && dd(t, i.createdAt.slice(0, 10)) >= 7);
+  if (viejas.length) add('jessica', 'baja', '💡', `${viejas.length} idea(s) llevan 7+ días sin usar: "${viejas[0].title}". ¿La vuelves video o la borras?`, 'studio');
   const cambios = store.list('contentPlans').flatMap((p) => (p.items || []).filter((i) => i.status === 'cambios').map((i) => ({ i, p })));
   if (cambios.length) add('harvey', 'media', '✏️', `${cambios.length} contenido(s) con cambios pedidos por el cliente sin resolver.`, 'studio');
   const order = { alta: 0, media: 1, baja: 2 };

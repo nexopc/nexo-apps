@@ -44,6 +44,27 @@ function run() {
     const subj = store.get('subjects', ex.subject);
     sendOnce('exam-' + ex.id + '-' + ex.date, { type: 'task', tipo: 'examen', title: ex.title + (subj ? ' · ' + subj.name : ''), due: ex.date + 'T07:00', subj: subj?.name || '', notes: ex.topics || '📝 Desde NEXO Aprende' });
   }
+  // Negocios → Studio: un trabajo aprobado con un plan que incluye videos (ej. 8 reels) crea sus videos (una sola vez).
+  for (const j of store.list('jobs')) {
+    if (!['aprobado', 'en curso'].includes(j.status) || !j.service) continue;
+    const svc = store.get('services', j.service); const n = Math.min(60, Number(svc?.videos) || 0); if (!n) continue;
+    for (let i = 1; i <= n; i++) {
+      const id = `job-${j.id}-${i}`;
+      if (store.raw('videos').some((v) => v.id === id)) continue; // ya existe (o lo borraste): no se vuelve a crear
+      store.add('videos', { id, title: `${svc.name}${svc.plan ? ' ' + svc.plan : ''} · ${i}/${n}`, client: j.client || '', source: j.source || '', job: j.id, status: 'idea', due: j.due || '', escenas: [] });
+    }
+  }
+  // Studio 3 → NEXO PLAN: cada escena con fecha y hora llega como cita 🔒 fija (con lugar y sus planos). Si cambias fecha/hora/lugar, se actualiza.
+  for (const v of store.list('videos')) {
+    (v.escenas || []).forEach((e, i) => {
+      if (!e.fecha || !e.hora) return;
+      const lugar = store.get('lugares', e.lugar)?.name || e.lugarTxt || '';
+      const start = new Date(e.fecha + 'T' + e.hora).getTime(); if (!start) return;
+      const mins = Math.max(30, (e.planos || []).length * 10 + 20);
+      const notas = `🎬 ${v.title} · Escena ${i + 1}${e.titulo ? ': ' + e.titulo : ''}\n` + (e.planos || []).map((p, k) => `${String.fromCharCode(65 + k)}. ${p.desc || p.tipo || 'Plano'}`).join('\n') + (e.prepara ? `\n👉 El cliente prepara: ${e.prepara}` : '');
+      sendOnce(`studio-${v.id}-${e.id}-${e.fecha}-${e.hora}-${lugar}`, { type: 'cita', key: `studio-${v.id}-${e.id}`, title: '🎥 Grabar: ' + v.title, start, end: start + mins * 60000, place: lugar, notes: notas });
+    });
+  }
   // Studio → NEXO PLAN: cada grabación llega como tarea con fecha y hora.
   for (const sh of store.list('shoots')) {
     if (!sh.date) continue;
@@ -51,5 +72,5 @@ function run() {
   }
 }
 let t = 0;
-store.subscribe('*', (col) => { if (['invoices', 'exams', 'shoots', 'registroDiario', 'abonos', 'cotizaciones'].includes(col)) { clearTimeout(t); t = setTimeout(run, 150); } });
+store.subscribe('*', (col) => { if (['invoices', 'exams', 'shoots', 'registroDiario', 'abonos', 'cotizaciones', 'jobs', 'videos'].includes(col)) { clearTimeout(t); t = setTimeout(run, 150); } });
 setTimeout(run, 300);

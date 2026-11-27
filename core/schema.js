@@ -83,6 +83,7 @@ export const SCHEMA = {
     { k: 'plan', label: 'Plan', type: 'select', options: ['Básico', 'Pro', 'Premium', 'Esencial', 'Completo', 'Élite', 'Único'] },
     { k: 'price', label: 'Precio', type: 'money', required: true }, { k: 'monthly', label: 'Mensualidad (si aplica)', type: 'money' },
     { k: 'mensual', label: 'Es un servicio mensual', type: 'check' }, { k: 'hours', label: 'Horas estimadas', type: 'number' },
+    { k: 'videos', label: 'Videos que incluye (Studio los crea solos al aprobar)', type: 'number' },
     { k: 'costos', label: 'Costos por trabajo (datos, transporte, materiales…)', type: 'money' },
     { k: 'anticipo', label: 'Anticipo %', type: 'number', default: 50 }, { k: 'entrega', label: 'Tiempo de entrega', ph: '5 días hábiles' },
     { k: 'desc', label: 'Qué incluye', type: 'textarea' }, { k: 'noIncluye', label: 'No incluye', type: 'textarea' },
@@ -106,7 +107,7 @@ export const SCHEMA = {
     { k: 'name', label: 'Cliente / negocio', required: true }, { k: 'contact', label: 'WhatsApp', ph: '300 555 1234' },
     { k: 'source', label: 'Empresa que lo atiende', type: 'ref', ref: 'sources' },
     { k: 'negocio', label: 'Tipo de negocio', ph: 'Barbería, droguería, restaurante…' }, { k: 'address', label: 'Dirección', ph: 'Barrio, calle…' },
-    { k: 'ig', label: 'Instagram', ph: '@negocio' }, { k: 'tiktok', label: 'TikTok', ph: '@negocio' }, { k: 'fb', label: 'Facebook' },
+    { k: 'color', label: 'Color (Studio)', type: 'color' }, { k: 'ig', label: 'Instagram', ph: '@negocio' }, { k: 'tiktok', label: 'TikTok', ph: '@negocio' }, { k: 'fb', label: 'Facebook' },
     { k: 'email', label: 'Correo', type: 'url', ph: 'cliente@correo.com' }, { k: 'note', label: 'Notas', type: 'textarea' },
   ] },
   jobs: { app: 'negocios', label: 'Trabajos y entregas', fields: [
@@ -148,7 +149,7 @@ export const SCHEMA = {
 
   // ---------- NEXO Studio ----------
   ideas: { app: 'studio', label: 'Banco de ideas', fields: [
-    { k: 'title', label: 'Idea', required: true }, { k: 'for', label: 'Para', type: 'select', options: ['NEXO PC', 'Agencia', 'Cliente', 'Personal'] },
+    { k: 'title', label: 'Idea', required: true }, { k: 'tags', label: 'Etiquetas', ph: 'humor, tutorial, antes/después, testimonio, tendencia' }, { k: 'link', label: 'Link de referencia', type: 'url' }, { k: 'for', label: 'Para', type: 'select', options: ['NEXO PC', 'Agencia', 'Cliente', 'Personal'] },
     { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' }, { k: 'platform', label: 'Red', type: 'select', options: ['TikTok', 'Instagram Reels', 'YouTube', 'YouTube Shorts', 'Facebook'] },
     { k: 'hook', label: 'Gancho (primeros 3 segundos)', type: 'textarea' },
   ] },
@@ -163,10 +164,16 @@ export const SCHEMA = {
   ] },
   videos: { app: 'studio', label: 'Estado de cada video', fields: [
     { k: 'title', label: 'Video', required: true }, { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' },
-    { k: 'status', label: 'Estado', type: 'select', options: [['idea', '💡 Plan'], ['guion', '📝 Guion'], ['grabado', '🎥 Grabar'], ['edicion', '✂️ Editar'], ['revision', '👀 Aprobación del cliente'], ['publicado', '✅ Entregado / publicado']], default: 'idea' },
+    { k: 'status', label: 'Estado', type: 'select', options: [['idea', '💡 Idea'], ['guion', '📝 Guion'], ['grabar', '🎥 Grabar'], ['editar', '✂️ Editar'], ['entregar', '📤 Entregar'], ['publicado', '✅ Publicado']], default: 'idea' },
+    { k: 'due', label: 'Entrega', type: 'date' }, { k: 'tags', label: 'Etiquetas', ph: 'antes/después, tutorial…' },
     { k: 'platform', label: 'Red', type: 'select', options: ['TikTok', 'Instagram Reels', 'YouTube', 'YouTube Shorts', 'Facebook'] },
     { k: 'publishDate', label: 'Fecha de publicación', type: 'date' }, { k: 'link', label: 'Enlace', type: 'url' },
     { k: 'script', label: 'Guion', type: 'ref', ref: 'scripts', refLabel: 'title' }, { k: 'shoot', label: 'Grabación', type: 'ref', ref: 'shoots', refLabel: 'title' },
+  ] },
+  lugares: { app: 'studio', label: 'Lugares de grabación', fields: [
+    { k: 'name', label: 'Lugar', required: true, ph: 'Barbería Flow' }, { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' },
+    { k: 'address', label: 'Dirección' }, { k: 'luz', label: 'Luz', ph: 'Natural por la tarde, fluorescente adentro…' },
+    { k: 'enchufes', label: 'Enchufes', ph: '2 junto al espejo' }, { k: 'horario', label: 'Mejor horario para grabar', ph: 'Lunes 2–5 p. m.' }, { k: 'note', label: 'Notas', type: 'textarea' },
   ] },
   references: { app: 'studio', label: 'Referencias guardadas', fields: [
     { k: 'title', label: 'Qué me gustó', required: true }, { k: 'link', label: 'Enlace', type: 'url' }, { k: 'note', label: 'Nota', type: 'textarea' },

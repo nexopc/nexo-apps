@@ -78,6 +78,7 @@ export function snapshot() {
     horario_hoy: (planDay(today) || []).map((b) => `${b.s}-${b.e} ${b.title} [${b.cat}]${b.fijo ? ' 🔒' : ''}${b.ancla ? ' ⚓' : ''}${b.estado ? ' (' + b.estado + ')' : ''}`),
     horario_manana: (planInfo()?.manana || []).map((b) => `${b.s}-${b.e} ${b.title}${b.fijo ? ' 🔒' : ''}`),
     proyectos: store.list('proyectos').filter((p) => p.status !== 'terminado').map((p) => `${p.name} [${p.status || 'activo'}]`),
+    videos_en_produccion: store.list('videos').filter((v) => v.status !== 'publicado').map((v) => ({ t: v.title, paso: v.status || 'idea', entrega: v.due || '', cliente: store.get('clients', v.client)?.name || '' })).slice(0, 12),
     misiones_hoy: store.list('misiones').filter((m) => m.date === fmt.today()).map((m) => ({ t: m.title, hecha: !!m.done })).slice(0, 10),
     tareas_pendientes: store.list('tareas').filter((t) => !t.done).map((t) => ({ t: t.title, p: (Number(t.imp) || 3) * (Number(t.urg) || 3) >= 16 ? 'alta' : (Number(t.imp) || 3) * (Number(t.urg) || 3) >= 9 ? 'media' : 'baja', para: t.due || '' })).slice(0, 20),
     eventos_proximos: (planInfo()?.tareas || []).filter((t) => t.para && t.para.slice(0, 10) >= today).sort((a, b) => a.para.localeCompare(b.para)).slice(0, 8).map((t) => `${t.para.replace('T', ' ')} ${t.titulo}`),

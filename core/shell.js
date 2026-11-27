@@ -253,7 +253,8 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
   await lockScreen({ title: app.name, logo: LOGOS[app.id] || LOGOS.custom });
   if (cloud.available()) cloud.init().catch(() => {});
 
-  const navMods = [{ id: 'home', title: homeLabel, icon: homeIcon }, ...modules];
+  const allMods = [{ id: 'home', title: homeLabel, icon: homeIcon }, ...modules];
+  const navMods = allMods.filter((m) => !m.hidden); // hidden: se abre con api.go pero no sale en el menú
   const root = h(`<div class="shell">
     <header class="topbar">
       <button class="back-btn" data-a="back" aria-label="Atrás">‹ <span>Atrás</span></button>
@@ -288,7 +289,7 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
   let current = null;
   const go = (id, push = true) => {
     const prev = current;
-    current = navMods.find((m) => m.id === id) || navMods[0];
+    current = allMods.find((m) => m.id === id) || navMods[0];
     if (push && prev && prev.id !== current.id) {
       // Inicio es la base; cada sección queda UNA posición encima → atrás siempre vuelve a Inicio
       if (current.id === 'home') { if (history.state?.nav) selfBack(); }
@@ -330,7 +331,7 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
 
   // re-pintar en vivo cuando cambian los datos (también si cambian desde otra app o Harvey)
   let raf = 0;
-  store.subscribe('*', () => { if (staticHome && current?.id === 'home') return; cancelAnimationFrame(raf); raf = requestAnimationFrame(paint); });
+  store.subscribe('*', () => { if ((staticHome && current?.id === 'home') || current?.static) return; /* static: el módulo se repinta solo */ cancelAnimationFrame(raf); raf = requestAnimationFrame(paint); });
 
   root.addEventListener('click', async (e) => {
     const n = e.target.closest('[data-nav]'); if (n) { go(n.dataset.nav); haptic(5); return; }

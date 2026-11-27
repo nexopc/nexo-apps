@@ -100,6 +100,8 @@ function fieldHTML(f, v) {
     case 'number': return `<div class="field">${L}<input id="${id}" name="${f.k}" type="number" inputmode="decimal" step="${f.step || 'any'}" value="${esc(val)}"></div>`;
     case 'date': return `<div class="field">${L}<input id="${id}" name="${f.k}" type="date" value="${esc(val || (f.today ? fmt.today() : ''))}"></div>`;
     case 'time': return `<div class="field">${L}<input id="${id}" name="${f.k}" type="time" value="${esc(val)}"></div>`;
+    case 'days': { const sel = Array.isArray(val) ? val : []; return `<div class="field"><label>${esc(f.label.replace(/ \(.*\)$/, ''))}</label><div class="seg days" data-days="${f.k}">${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => `<button type="button" data-d="${i}" aria-pressed="${sel.includes(i)}" aria-label="${['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'][i]}">${d}</button>`).join('')}</div></div>`; }
+    case 'scale': { const v0 = Number(val) || 3; return `<div class="field"><label>${esc(f.label)}</label><div class="seg scale" data-scale="${f.k}">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-n="${n}" aria-pressed="${n === v0}">${n}</button>`).join('')}</div></div>`; }
     case 'color': return `<div class="field">${L}<input id="${id}" name="${f.k}" type="color" value="${esc(val || '#2D7CFF')}"></div>`;
     default: return `<div class="field">${L}<input id="${id}" name="${f.k}" type="${f.type === 'url' ? 'url' : 'text'}" value="${esc(val)}" placeholder="${esc(f.ph || '')}"></div>`;
   }
@@ -107,6 +109,8 @@ function fieldHTML(f, v) {
 function readForm(form, fields) {
   const out = {};
   for (const f of fields) {
+    if (f.type === 'days') { const g = form.querySelector(`[data-days="${f.k}"]`); if (g) out[f.k] = [...g.querySelectorAll('[aria-pressed=true]')].map((b) => Number(b.dataset.d)); continue; }
+    if (f.type === 'scale') { const g = form.querySelector(`[data-scale="${f.k}"] [aria-pressed=true]`); if (g) out[f.k] = Number(g.dataset.n); continue; }
     const el = form.elements[f.k]; if (!el) continue;
     if (f.type === 'check') out[f.k] = el.checked;
     else if (f.type === 'number' || f.type === 'money') out[f.k] = el.value === '' ? null : Number(el.value);
@@ -127,12 +131,16 @@ export function openForm(mod, rec = null, preset = {}) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const data = { ...preset, ...readForm(form, fields) };
-    const req = fields.find((f) => f.required && (data[f.k] === '' || data[f.k] == null));
+    const req = fields.find((f) => f.required && (data[f.k] === '' || data[f.k] == null || (Array.isArray(data[f.k]) && !data[f.k].length)));
     if (req) { toast(`Falta: ${req.label}`); form.elements[req.k]?.focus(); return; }
-    rec ? store.update(mod.collection, rec.id, data) : store.add(mod.collection, data);
+    if (mod.validate) { const err = mod.validate(data, rec); if (err) { toast(err); return; } }
+    const saved = rec ? store.update(mod.collection, rec.id, data) : store.add(mod.collection, data);
     haptic(); toast(rec ? 'Cambios guardados' : 'Guardado'); s.close();
+    mod.afterSave?.(saved, !rec);
   });
   form.addEventListener('click', async (e) => {
+    const dd = e.target.closest('[data-days] button'); if (dd) { dd.setAttribute('aria-pressed', dd.getAttribute('aria-pressed') !== 'true'); return; }
+    const sc = e.target.closest('[data-scale] button'); if (sc) { sc.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === sc)); return; }
     const a = e.target.closest('[data-a]')?.dataset.a;
     if (a === 'cancel') s.close();
     if (a === 'del' && await confirmSheet('¿Borrar?', 'Esto se borra en todas tus apps y dispositivos.', { yes: 'Borrar', danger: true })) {

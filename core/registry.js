@@ -13,22 +13,25 @@ export const LOGOS = {
   studio: svg('<rect x="3" y="5" width="18" height="15" rx="3"/><path d="m10 9.5 5 3-5 3z"/><path d="M7 2.5 9 5M15 2.5 13 5"/>'),
   aprende: svg('<circle cx="12" cy="12" r="2"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/>'),
   harvey: svg('<path d="M7 4v16M17 4v16M7 12h10"/><path d="M4 20h6M14 20h6"/>'),
+  planclasico: svg('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/>'),
   custom: svg('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/>'),
 };
 
 export const APPS = [
-  { id: 'plan', name: 'NEXO Plan', tagline: 'tu tiempo', accent: '#00E5FF', path: PLAN_URL, external: true,
-    cols: ['planBridge'], brain: 'Donna' },
+  { id: 'plan', name: 'NEXO Plan', tagline: 'tu tiempo', accent: '#00E5FF', path: 'apps/plan/',
+    cols: ['bloques', 'agenda', 'proyectos', 'tareas'], brain: 'Donna' },
   { id: 'finanzas', name: 'NEXO Finanzas', tagline: 'tu plata', accent: '#1CE783', path: 'apps/finanzas/',
     cols: ['accounts', 'transactions', 'budgets', 'savings', 'subscriptions', 'alerts'], brain: 'Louis' },
   { id: 'negocios', name: 'NEXO Negocios', tagline: 'tu trabajo', accent: '#FF8A1F', path: 'apps/negocios/',
     cols: ['sources', 'services', 'combos', 'clients', 'jobs', 'timeLogs', 'invoices', 'prospects', 'registroDiario'], brain: 'Harvey' },
   { id: 'studio', name: 'NEXO Studio', tagline: 'tu contenido', accent: '#FF4F9A', path: 'apps/studio/',
-    cols: ['ideas', 'scripts', 'shoots', 'videos', 'references', 'metrics', 'portfolio'], brain: 'Mike' },
+    cols: ['videos', 'ideas', 'scripts', 'shoots', 'contentPlans', 'clips', 'references', 'metrics', 'portfolio'], brain: 'Mike' },
   { id: 'aprende', name: 'NEXO Aprende', tagline: 'tu estudio', accent: '#FFC23D', path: 'apps/aprende/',
-    cols: ['subjects', 'grades', 'exams', 'routes', 'english', 'flashcards', 'notes'], brain: 'Mike' },
+    cols: ['topics', 'subjects', 'grades', 'exams', 'routes', 'english', 'flashcards', 'notes'], brain: 'Mike' },
+  { id: 'planclasico', name: 'NEXO PLAN clásico', tagline: 'tu app anterior (sigue funcionando)', accent: '#5E7A86', path: PLAN_URL, external: true,
+    cols: ['planBridge'], brain: 'Donna', legacy: true },
   { id: 'harvey', name: 'Harvey', tagline: 'tu asistente', accent: '#F5B83D', path: 'apps/harvey/',
-    cols: ['chat', 'briefs'], brain: 'Jessica' },
+    cols: ['chat', 'memoria'], brain: 'Jessica' },
 ];
 
 // Apps agregadas por ti desde el Hub (enlaces externos o futuras apps)

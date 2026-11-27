@@ -4,7 +4,36 @@
 
 
 export const SCHEMA = {
-  // NEXO Plan (horario, tareas, metas, hábitos, diario) vive en la app NEXO PLAN → ver core/planlink.js
+  // ---------- NEXO Plan (nuevo, dentro de la red) ----------
+  bloques: { app: 'plan', label: 'Horario base semanal', fields: [
+    { k: 'title', label: 'Bloque', required: true, ph: 'Colegio, Calle: buscar clientes, Gimnasio…' },
+    { k: 'days', label: 'Días (0=lun … 6=dom)', type: 'days', default: [0, 1, 2, 3, 4] },
+    { k: 'start', label: 'Empieza', type: 'time', required: true }, { k: 'end', label: 'Termina', type: 'time', required: true },
+    { k: 'fixed', label: '🔒 Fijo (no se mueve: colegio, clases, dormir)', type: 'check' },
+    { k: 'cat', label: 'Tipo', type: 'select', options: [['estudio', '📚 Estudio'], ['trabajo', '💼 Trabajo'], ['cliente', '🤝 Cliente'], ['contenido', '🎬 Contenido'], ['salud', '💪 Salud'], ['personal', '🙂 Personal'], ['descanso', '😴 Descanso']], default: 'trabajo' },
+  ] },
+  agenda: { app: 'plan', label: 'Agenda de un día (bloques sueltos, organizados o de Harvey)', fields: [
+    { k: 'title', label: 'Bloque', required: true }, { k: 'date', label: 'Fecha', type: 'date', today: true, required: true },
+    { k: 'start', label: 'Empieza', type: 'time', required: true }, { k: 'end', label: 'Termina', type: 'time', required: true },
+    { k: 'fixed', label: '🔒 Fijo (cita, cliente, examen)', type: 'check' },
+    { k: 'cat', label: 'Tipo', type: 'select', options: [['estudio', '📚 Estudio'], ['trabajo', '💼 Trabajo'], ['cliente', '🤝 Cliente'], ['contenido', '🎬 Contenido'], ['salud', '💪 Salud'], ['personal', '🙂 Personal'], ['descanso', '😴 Descanso']], default: 'trabajo' },
+    { k: 'done', label: 'Hecho', type: 'check' },
+  ] },
+  dias: { app: 'plan', label: 'Días ajustados (id = fecha; blocks reemplaza el horario base de esa fecha)', hidden: true, fields: [{ k: 'reason', label: 'Motivo' }] },
+  hechos: { app: 'plan', label: 'Bloques del horario base marcados como hechos (id = fecha)', hidden: true, fields: [{ k: 'keys', label: 'Bloques' }] },
+  proyectos: { app: 'plan', label: 'Proyectos', fields: [
+    { k: 'name', label: 'Proyecto', required: true, ph: 'App catálogo de Quibdó' },
+    { k: 'status', label: 'Estado', type: 'select', options: [['idea', '💡 Idea'], ['activo', '🟢 Activo'], ['pausado', '⏸ Pausado'], ['futuro', '📅 Empieza en una fecha'], ['terminado', '✅ Terminado']], default: 'activo' },
+    { k: 'start', label: 'Empieza (si es futuro)', type: 'date' }, { k: 'goal', label: '¿Qué es terminarlo?', type: 'textarea' },
+    { k: 'color', label: 'Color', type: 'color' },
+  ] },
+  tareas: { app: 'plan', label: 'Tareas (prioridad = importancia × urgencia)', fields: [
+    { k: 'title', label: 'Tarea', required: true, ph: 'Pequeña: 15 a 45 minutos' }, { k: 'project', label: 'Proyecto', type: 'ref', ref: 'proyectos' },
+    { k: 'imp', label: 'Importancia (1 a 5)', type: 'scale', default: 3 }, { k: 'urg', label: 'Urgencia (1 a 5)', type: 'scale', default: 3 },
+    { k: 'minutes', label: 'Minutos que toma', type: 'number', default: 30 }, { k: 'due', label: 'Para cuándo', type: 'date' },
+    { k: 'done', label: 'Hecha', type: 'check' },
+  ] },
+
 
   // ---------- NEXO Finanzas ----------
   accounts: { app: 'finanzas', label: 'Cuentas y bolsillos', fields: [
@@ -134,7 +163,30 @@ export const SCHEMA = {
     { k: 'link', label: 'Enlace', type: 'url' }, { k: 'result', label: 'Resultado (números)', ph: '+12.000 vistas, 30 mensajes' }, { k: 'show', label: 'Mostrar a clientes', type: 'check', default: true },
   ] },
 
+  contentPlans: { app: 'studio', label: 'Planes de contenido mensuales por cliente', fields: [
+    { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients', required: true }, { k: 'month', label: 'Mes (AAAA-MM)', required: true, ph: '2026-12' },
+    { k: 'note', label: 'Nota', type: 'textarea' },
+  ] },
+  clips: { app: 'studio', label: 'Biblioteca de clips', fields: [
+    { k: 'title', label: 'Clip', required: true, ph: 'Toma aérea de Quibdó, manos armando PC…' }, { k: 'link', label: 'Enlace o ubicación', ph: 'Drive, carpeta, celular…' },
+    { k: 'tags', label: 'Etiquetas', ph: 'b-roll, tienda, noche' }, { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' },
+  ] },
+
+  // ---------- Harvey ----------
+  memoria: { app: 'harvey', label: 'Lo que los cerebros aprendieron de ti', fields: [
+    { k: 'text', label: 'Dato', required: true }, { k: 'brain', label: 'Cerebro', type: 'select', options: ['harvey', 'donna', 'louis', 'mike', 'jessica'] },
+  ] },
+
   // ---------- NEXO Aprende ----------
+  topics: { app: 'aprende', label: 'Temas de estudio (ficha por tema)', fields: [
+    { k: 'name', label: 'Tema', required: true, ph: 'Filmora 16, Matemáticas, Inglés…' },
+    { k: 'type', label: 'Tipo', type: 'select', options: [['fija', '🔒 Clase fija (horario del colegio o curso)'], ['obligatoria', '❗ Obligatoria (tiene que estudiarse)'], ['flexible', '↔ Flexible (cuando haya tiempo)']], default: 'flexible' },
+    { k: 'hoursWeek', label: 'Horas por semana que necesita', type: 'number', step: 0.5, default: 2 },
+    { k: 'classDays', label: 'Días de clase (solo clase fija)', type: 'days', default: [] },
+    { k: 'classTime', label: 'Hora de la clase', type: 'time' }, { k: 'classMinutes', label: 'Duración de la clase (min)', type: 'number', default: 60 },
+    { k: 'imp', label: 'Importancia (1 a 5)', type: 'scale', default: 3 }, { k: 'urg', label: 'Urgencia (1 a 5)', type: 'scale', default: 3 },
+    { k: 'color', label: 'Color', type: 'color' }, { k: 'notes', label: 'Notas', type: 'textarea' },
+  ] },
   subjects: { app: 'aprende', label: 'Materias del colegio', fields: [
     { k: 'name', label: 'Materia', required: true }, { k: 'teacher', label: 'Profesor(a)' }, { k: 'color', label: 'Color', type: 'color' },
   ] },

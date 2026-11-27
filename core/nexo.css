@@ -272,3 +272,15 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; text-wra
   .back-btn { padding: 0 6px 0 0; margin-right: 0; }
   [data-os="ios"] .brand > span:last-child { display: none; }   /* iPhone: se prioriza "‹ Atrás" sobre el nombre */
 }
+
+.seg.days button, .seg.scale button { min-width: 40px; min-height: 40px; padding: 6px 0; text-align: center; }
+/* Posiciones fijas en la cuadrícula: el aviso "Entra con Google" ya no empuja el contenido a la columna de la izquierda */
+.shell { grid-template-rows: auto auto 1fr; }
+.shell > .topbar { grid-row: 1; } .shell > .login-banner { grid-row: 2; align-self: start; } .shell > .main { grid-row: 3; }
+[data-os="windows"] .shell, [data-os="desktop"] .shell { grid-template-rows: auto auto 1fr; }
+[data-os="windows"] .shell > .sidebar, [data-os="desktop"] .shell > .sidebar { grid-column: 1; grid-row: 2 / 4; }
+[data-os="windows"] .shell > .login-banner, [data-os="desktop"] .shell > .login-banner { grid-column: 2; }
+[data-os="windows"] .shell > .main, [data-os="desktop"] .shell > .main { grid-column: 2; }
+@media (max-width: 760px) {
+  [data-os="windows"] .shell > .login-banner, [data-os="desktop"] .shell > .login-banner, [data-os="windows"] .shell > .main, [data-os="desktop"] .shell > .main { grid-column: 1; }
+}

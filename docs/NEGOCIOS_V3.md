@@ -56,3 +56,14 @@ Cotización sin respuesta (2 días) · cobro vencido · entrega cercana (1 día 
 
 ## Datos privados
 Datos de cobro (Nequi, cuenta, cédula) **no van en el código**: se escriben en Ajustes → Mis datos de cobro y se guardan en Supabase.
+
+## 🎯 Misiones secundarias (para cumplir la meta del día)
+- **De dónde salen (3 fuentes):**
+  1. **Automáticas** cada mañana, de tus datos: cobrar saldos ("Cobra $ 715.500 a La 24"), seguimientos ("Escríbele a Barbería Flow"), prospectos calientes, contactos que faltan, entregas cercanas.
+  2. **Tuyas**: puedes crear tus propias misiones en cualquier momento.
+  3. **De Claude**: cuando organizamos tu semana (en el chat con el conector de Supabase, o la tarea del domingo cuando tenga el conector), Claude deja misiones para cada día en la colección `misiones`.
+- **Cuántas**: según la meta. Semáforo rojo → más misiones (5), amarillo → 4, verde → 3.
+- **Conexión con el horario**: las misiones salen en NEXO PLAN → ⚡ Organizar como propuestas en tus ratos Libre; tú eliges y aplicas. Las que tienen hora (visita, entrega, cita con cliente) van con esa hora.
+- **Se marcan solas** cuando haces la acción en la app (registras el cobro, envías la cotización, anotas el seguimiento). También se pueden marcar a mano.
+- **Sin premios** (ni puntos ni rachas): solo la lista y su avance.
+- Se ven en: NEXO Negocios (arriba de Clientes, en "Mi día") y NEXO PLAN (Mi día / ⚡ Organizar). Harvey las lee.

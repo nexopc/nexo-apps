@@ -1,7 +1,9 @@
 // NEXO Aprende · tu estudio
-import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey, prefs } from '../../core/shell.js';
+import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey, prefs, openTimer } from '../../core/shell.js';
+import { timer } from '../../core/timer.js';
+import { DAYS, studiedMin, topicNeed, topicDone, score, organizeRange, addDays, mondayOf, weekday } from '../../core/planner.js';
 
-const VERSION = '1.1.0';
+const VERSION = '2.0.0';
 const INTERVAL = [1, 2, 4, 8, 16]; // días por caja (sistema Leitner)
 const sname = (id) => store.get('subjects', id)?.name || '';
 const daysTo = (d) => Math.round((new Date(d + 'T12:00') - new Date(fmt.today() + 'T12:00')) / 864e5);
@@ -20,6 +22,71 @@ const SUGGESTED = {
   'Marketing digital': ['Buyer persona de una tienda en Quibdó', 'Ganchos y guiones para videos cortos', 'Calendario de contenido', 'Meta Business Suite e Instagram profesional', 'Pauta básica (Meta Ads) con $20.000', 'Métricas que importan', 'Cómo cobrar y armar paquetes', 'Reporte mensual para clientes'],
   'Saber 11': ['Lectura crítica: tipos de texto', 'Matemáticas: proporciones y porcentajes', 'Matemáticas: álgebra y funciones', 'Ciencias naturales: química básica', 'Ciencias naturales: física (movimiento, energía)', 'Sociales y ciudadanas: Constitución', 'Inglés: comprensión lectora', 'Simulacro completo 1', 'Simulacro completo 2'],
 };
+
+// ---------- Temas: ficha por tema (horas que necesita vs. horas hechas con el cronómetro) ----------
+const TYPE = { fija: ['🔒', 'Clase fija'], obligatoria: ['❗', 'Obligatoria'], flexible: ['↔', 'Flexible'] };
+const need = (t) => topicNeed(t);
+const hm = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + (m % 60) + ' min' : ''}` : `${m} min`);
+function startStudy(t) { openTimer({ label: t.name, kind: 'estudio', topic: t.id }); }
+const temas = fromSchema('topics', { id: 'temas', title: 'Temas', icon: '⚛️', single: 'tema',
+  validate: (d) => (d.type === 'fija' && (!d.classDays?.length || !d.classTime) ? 'Una clase fija necesita días y hora de clase' : null),
+  render(el) {
+    const ts = store.list('topics').sort((a, b) => ({ fija: 0, obligatoria: 1, flexible: 2 }[a.type] - { fija: 0, obligatoria: 1, flexible: 2 }[b.type]) || score(b) - score(a));
+    const run = timer.state();
+    const totN = ts.reduce((a, t) => a + need(t), 0), totD = ts.reduce((a, t) => a + topicDone(t), 0);
+    el.innerHTML = ts.length ? `<div class="card wk"><div class="row" style="justify-content:space-between"><b>Esta semana</b><span class="num">${hm(totD)} de ${hm(totN)}</span></div><div class="bar"><i style="width:${totN ? Math.min(100, (totD / totN) * 100) : 0}%"></i></div>
+        <div class="row" style="margin-top:8px"><button class="btn btn-ai sm" data-a="agendar">📅 Agendar lo que falta en mi Plan</button></div></div>
+      <div class="grid section">${ts.map((t) => { const n = need(t), d = topicDone(t); const [ic, lb] = TYPE[t.type || 'flexible']; const late = n && d < n * ((weekday(fmt.today()) + 1) / 7) * 0.6;
+        return `<div class="card topic" data-t="${t.id}" style="--k:${esc(t.color || 'var(--accent)')}"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${esc(t.name)}</b><span class="chip">${ic} ${lb}</span></div>
+          <span class="muted num" style="font-size:13px">${t.type === 'fija' && t.classTime ? `${(t.classDays || []).map((x) => DAYS[x].slice(0, 2)).join(' ')} ${t.classTime} · ` : ''}${hm(d)} de ${hm(n)} · imp ${t.imp || 3} · urg ${t.urg || 3}</span>
+          <div class="bar"><i style="width:${n ? Math.min(100, (d / n) * 100) : 0}%;background:${late ? 'var(--c-pending)' : 'var(--k)'}"></i></div>
+          <div class="row"><button class="btn btn-create sm" data-play="${t.id}" ${run?.topic === t.id ? 'disabled' : ''}>${run?.topic === t.id ? '⏱ Estudiando…' : '▶ Estudiar ahora'}</button>${(t.tasks || []).filter((x) => !x.done).length ? `<span class="muted" style="font-size:12px">${(t.tasks || []).filter((x) => !x.done).length} tareas</span>` : ''}</div></div>`; }).join('')}</div>`
+      : '<div class="empty"><b>Agrega tus temas</b>Cada tema con su tipo (clase fija, obligatoria o flexible), las horas por semana que necesita, importancia y urgencia. El cronómetro mide lo que estudias y el Plan agenda lo que falta.</div>';
+    el.onclick = (e) => {
+      const pl = e.target.closest('[data-play]'); if (pl) { e.stopPropagation(); return startStudy(store.get('topics', pl.dataset.play)); }
+      if (e.target.closest('[data-a=agendar]')) return agendarEstudio();
+      const c = e.target.closest('[data-t]'); if (c) topicSheet(store.get('topics', c.dataset.t));
+    };
+  },
+  preset: () => ({ type: 'flexible', hoursWeek: 2, imp: 3, urg: 3, classDays: [] }) });
+function agendarEstudio() {
+  const t = fmt.today(); const days = [...Array(7 - weekday(t))].map((_, i) => addDays(t, i));
+  const made = organizeRange(days).filter((r) => r.topic);
+  toast(made.length ? `📅 ${made.length} bloques de estudio en tu Plan (puedes moverlos allá)` : 'No hay huecos libres o ya está todo agendado');
+}
+function topicSheet(t) {
+  if (!t) return;
+  const body = h('<div class="form"></div>');
+  let un = null;
+  const s = sheet(t.name, body, { onClose: () => un?.() });
+  const paint = () => {
+    t = store.get('topics', t.id); if (!t) return s.close();
+    const n = need(t), d = topicDone(t);
+    const logs = store.list('timeLogs').filter((l) => l.topic === t.id).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
+    const [ic, lb] = TYPE[t.type || 'flexible'];
+    body.innerHTML = `<div class="row"><span class="chip">${ic} ${lb}</span><span class="chip">imp ${t.imp || 3} × urg ${t.urg || 3} = ${score(t)}</span>${t.type === 'fija' && t.classTime ? `<span class="chip">📅 ${(t.classDays || []).map((x) => DAYS[x].slice(0, 2)).join(' ')} ${t.classTime} · ${t.classMinutes || 60} min</span>` : ''}</div>
+      <div><div class="row num" style="justify-content:space-between"><span>Esta semana</span><b>${hm(d)} de ${hm(n)}</b></div><div class="bar" style="margin-top:6px"><i style="width:${n ? Math.min(100, (d / n) * 100) : 0}%"></i></div>
+        <p class="muted" style="font-size:12px;margin:4px 0 0">${n > d ? `Te faltan ${hm(n - d)} · ${hm(Math.ceil((n - d) / (7 - weekday(fmt.today())) / 5) * 5)} por día hasta el domingo` : n ? '✓ Cumpliste las horas de la semana' : 'Ponle horas por semana para medir tu avance'}</p></div>
+      <button type="button" class="btn btn-create" data-a="play">▶ Estudiar ahora</button>
+      <div><b style="font-size:14px">Tareas del tema</b>
+        <form class="nq" data-task style="margin-top:6px"><input name="q" placeholder="＋ Tarea (Enter)" autocomplete="off" enterkeyhint="done"><button class="btn btn-create sm">＋</button></form>
+        <div class="list" style="margin-top:6px">${(t.tasks || []).map((x) => `<div class="list-item" style="cursor:default"><button class="check" data-tk="${x.id}" aria-pressed="${!!x.done}" aria-label="Marcar">✓</button><div class="li-main"><div class="li-title" ${x.done ? 'style="text-decoration:line-through;opacity:.6"' : ''}>${esc(x.t)}</div></div><button class="btn btn-delete ghost sm" data-tdel="${x.id}" aria-label="Quitar">✕</button></div>`).join('') || '<p class="muted" style="margin:0;font-size:13px">Sin tareas.</p>'}</div></div>
+      ${logs.length ? `<div><b style="font-size:14px">Últimas sesiones</b>${logs.map((l) => `<div class="row num" style="justify-content:space-between;font-size:13px;padding:2px 0"><span class="muted">${fmt.date(l.date)}</span><span>${hm(l.minutes)}</span></div>`).join('')}</div>` : ''}
+      <div class="row end"><button type="button" class="btn btn-ai ghost sm" data-a="mike">🟣 Mike: plan para este tema</button><button type="button" class="btn btn-edit ghost sm" data-a="edit">✎ Editar</button></div>`;
+  };
+  paint();
+  un = store.subscribe('*', (c) => { if (c === 'topics' || c === 'timeLogs') paint(); });
+  body.addEventListener('submit', (e) => { e.preventDefault(); const f = e.target; const v = f.q.value.trim(); if (!v) return;
+    store.update('topics', t.id, { tasks: [...(t.tasks || []), { id: store.uid(), t: v, done: false }] }); });
+  body.addEventListener('click', (e) => {
+    const tk = e.target.closest('[data-tk]'); if (tk) { store.update('topics', t.id, { tasks: (t.tasks || []).map((x) => (x.id === tk.dataset.tk ? { ...x, done: !x.done } : x)) }); navigator.vibrate?.(8); return; }
+    const td = e.target.closest('[data-tdel]'); if (td) { store.update('topics', t.id, { tasks: (t.tasks || []).filter((x) => x.id !== td.dataset.tdel) }); return; }
+    const a = e.target.closest('[data-a]')?.dataset.a;
+    if (a === 'play') { s.close(); setTimeout(() => startStudy(t), 300); }
+    if (a === 'edit') openForm(temas, t);
+    if (a === 'mike') openHarvey(`Mike: para mi tema "${t.name}" necesito ${t.hoursWeek || 0} h por semana y llevo ${hm(topicDone(t))}. Dame un plan corto de qué estudiar en cada sesión de 45 min esta semana.`);
+  });
+}
 
 const materias = fromSchema('subjects', { id: 'materias', title: 'Materias', icon: '🏫', single: 'materia',
   render(el) {
@@ -130,7 +197,10 @@ function home(el) {
   const saber = prefs.get('saberDate', '');
   const rs = store.list('routes');
   const routes = [...new Set(rs.map((r) => r.route))].map((n) => { const st = rs.filter((r) => r.route === n); return { n, p: Math.round((st.filter((s) => s.done).length / st.length) * 100) }; });
+  const ts = store.list('topics'); const totN = ts.reduce((x, t) => x + need(t), 0), totD = ts.reduce((x, t) => x + topicDone(t), 0);
   el.innerHTML = `<div class="page-title"><h1>Tu estudio</h1><button class="btn btn-ai sm" data-a="plan">🟣 Mike: plan de estudio</button></div>
+    ${ts.length ? `<button class="card wk" data-go="temas" style="width:100%;text-align:left;margin-bottom:12px"><div class="row" style="justify-content:space-between"><b>⚛️ Horas de estudio esta semana</b><span class="num">${hm(totD)} de ${hm(totN)}</span></div><div class="bar" style="margin-top:8px"><i style="width:${totN ? Math.min(100, (totD / totN) * 100) : 0}%"></i></div>
+      <div class="row" style="margin-top:8px;gap:6px">${ts.filter((t) => need(t)).sort((a, b) => (topicDone(a) / need(a)) - (topicDone(b) / need(b))).slice(0, 3).map((t) => `<span class="chip">${esc(t.name)} ${Math.round((topicDone(t) / need(t)) * 100)}%</span>`).join('')}</div></button>` : `<button class="card wk" data-go="temas" style="width:100%;text-align:left;margin-bottom:12px"><b>⚛️ Crea tus temas de estudio</b><p class="muted" style="margin:4px 0 0;font-size:13px">Ficha por tema: horas por semana, tipo e importancia. El cronómetro mide y el Plan agenda.</p></button>`}
     <div class="grid k"><div class="card kpi"><div class="v num" style="color:${gradeColor(a)}">${a == null ? '—' : a.toFixed(2)}</div><div class="l">promedio general</div></div>
       <div class="card kpi"><div class="v num">${dueCards().length}</div><div class="l">tarjetas para hoy</div></div>
       <div class="card kpi" data-a="saber" style="cursor:pointer"><div class="v num">${saber ? daysTo(saber) + ' d' : '＋'}</div><div class="l">${saber ? 'para el Saber 11' : 'poner fecha del Saber 11'}</div></div></div>
@@ -140,6 +210,7 @@ function home(el) {
       <div class="card"><h3>🎓 Meta universidad</h3><p style="margin:0">Ingeniería en Nanotecnología</p><p class="muted" style="margin:4px 0 0;font-size:13px">Pídele a Mike qué universidades la ofrecen en Colombia, qué puntaje piden y qué necesitas reforzar.</p></div>
     </div>`;
   el.onclick = (e) => {
+    const g = e.target.closest('[data-go]'); if (g) { document.querySelector(`[data-nav="${g.dataset.go}"]`)?.click(); return; }
     const a = e.target.closest('[data-a]')?.dataset.a;
     if (a === 'plan') openHarvey('Mike: revisa mis próximas evaluaciones, notas y rutas. Arma mi plan de estudio para esta semana y agenda los bloques en mi horario (confirmaré cada uno).');
     if (a === 'saber') { const body = h(`<form class="form"><div class="field"><label for="sd">Fecha del Saber 11</label><input id="sd" type="date" value="${esc(saber)}"></div><div class="row end"><button class="btn btn-create">Guardar</button></div></form>`); const s = sheet('Saber 11', body); body.onsubmit = (ev) => { ev.preventDefault(); prefs.set('saberDate', body.sd.value); s.close(); document.querySelector('[data-nav=home]').click(); }; }
@@ -149,7 +220,9 @@ function home(el) {
 const QUICK = [
   { label: 'Repasar', icon: '🃏', color: '#FFD23F', run: (api) => api.go('tarjetas') },
   { label: 'Apunte', icon: '🗒', color: '#22D3EE', run: () => openForm(apuntes) },
-  { label: 'Ruta', icon: '🧗', color: '#B8F25B', run: (api) => api.go('rutas') },
+  { label: 'Estudiar', icon: '▶', color: '#B8F25B', run: (api) => { const ts = store.list('topics'); if (!ts.length) { api.go('temas'); toast('Primero crea un tema'); return; }
+    const body = h(`<div class="list">${ts.map((t) => `<div class="list-item" data-t="${t.id}"><span style="font-size:20px">${TYPE[t.type || 'flexible'][0]}</span><div class="li-main"><div class="li-title">${esc(t.name)}</div><div class="li-sub">${hm(topicDone(t))} de ${hm(need(t))} esta semana</div></div><span class="btn btn-create sm">▶</span></div>`).join('')}</div>`);
+    const s = sheet('¿Qué vas a estudiar?', body); body.onclick = (e) => { const it = e.target.closest('[data-t]'); if (it) { s.close(); setTimeout(() => startStudy(store.get('topics', it.dataset.t)), 300); } }; } },
   { label: 'Inglés', icon: '🇺🇸', color: '#FF5DA2', run: (api) => api.go('ingles') },
 ];
-boot({ appId: 'aprende', version: VERSION, home, quick: QUICK, modules: [materias, parciales, notas, rutas, tarjetas, ingles, apuntes] });
+boot({ appId: 'aprende', version: VERSION, home, quick: QUICK, modules: [temas, materias, parciales, notas, rutas, tarjetas, ingles, apuntes] });

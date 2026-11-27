@@ -18,3 +18,7 @@ body { background: radial-gradient(800px 400px at 0% 0%, color-mix(in srgb, var(
 .flash span { grid-area: 1 / 1; display: grid; place-items: center; padding: 24px; font: 600 22px/1.35 var(--display); text-align: center; backface-visibility: hidden; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
 .flash .back { transform: rotateY(180deg); color: var(--accent); }
 .flash.flipped .front { transform: rotateY(-180deg); } .flash.flipped .back { transform: rotateY(0); }
+
+/* v2: fichas por tema */
+.topic { display: grid; gap: 8px; cursor: pointer; border-top: 4px solid var(--k); }
+.wk { display: grid; gap: 6px; cursor: pointer; }

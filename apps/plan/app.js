@@ -1,6 +1,6 @@
 // NEXO Plan · tu tiempo — horario base (fijo/flexible), días ajustados, proyectos y tareas por importancia × urgencia.
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, confirmSheet, openHarvey, openTimer } from '../../core/shell.js';
-import { CATS, DAYS, toMin, toHM, weekday, addDays, mondayOf, score, cfg, setCfg, baseFor, dayBlocks, materialize, toggleDone, organize, undoOrganize, nowNext, overlaps, freeSlots } from '../../core/planner.js';
+import { CATS, DAYS, toMin, toHM, weekday, addDays, mondayOf, score, cfg, setCfg, baseFor, dayBlocks, materialize, toggleDone, organize, organizeRange, undoOrganize, nowNext, overlaps, freeSlots } from '../../core/planner.js';
 
 const VERSION = '2.0.0';
 let day = fmt.today();
@@ -134,8 +134,7 @@ function newBlock(date = day, preset = {}) {
 
 // ---------- Organizar ----------
 async function runOrganize(dates) {
-  const made = [];
-  for (const d of dates) made.push(...organize(d));
+  const made = organizeRange(dates);
   if (!made.length) { toast(store.list('tareas').some((t) => !t.done) || store.list('topics').length ? 'No hay huecos libres suficientes (o todo ya está agendado)' : 'Agrega tareas o temas de estudio para organizar'); return; }
   const body = h(`<div class="form"><p style="margin:0">Puse <b>${made.length}</b> bloque${made.length > 1 ? 's' : ''} en tus huecos libres, por importancia × urgencia:</p>
     <div class="list">${made.slice(0, 14).map((r) => `<div class="list-item" style="cursor:default"><span class="num" style="min-width:92px">${dates.length > 1 ? DAYS[weekday(r.date)].slice(0, 3) + ' ' : ''}${r.start}–${r.end}</span><div class="li-main"><div class="li-title">${esc(r.title)}</div></div></div>`).join('')}</div>

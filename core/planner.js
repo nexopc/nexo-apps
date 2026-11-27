@@ -69,8 +69,8 @@ export function studiedMin(topicId, date = fmt.today()) {
 }
 // Minutos de estudio ya planeados (bloques en agenda) para un tema desde una fecha hasta el domingo, sin contar 'auto' del día que se reorganiza
 function plannedStudy(topicId, from, skipDate) {
-  const sun = addDays(mondayOf(from), 6);
-  return store.list('agenda').filter((a) => a.topic === topicId && a.date >= from && a.date <= sun && !a.done && !(a.date === skipDate && a.src === 'auto'))
+  const sun = addDays(mondayOf(from), 6); const start = fmt.today() > mondayOf(from) ? fmt.today() : mondayOf(from);
+  return store.list('agenda').filter((a) => a.topic === topicId && a.date >= start && a.date <= sun && !a.done && !(a.date === skipDate && a.src === 'auto'))
     .reduce((x, a) => x + Math.max(0, toMin(a.end) - toMin(a.start)), 0);
 }
 // Lo que hay por hacer: tareas pendientes + estudio que falta en la semana
@@ -113,6 +113,11 @@ export function organize(date, { fromNow = true } = {}) {
   }
   return made;
 }
+// Organiza varios días de una vez: primero limpia lo automático de todos para repartir parejo
+export function organizeRange(dates) {
+  for (const d of dates) for (const a of store.list('agenda').filter((x) => x.date === d && x.src === 'auto' && !x.done)) store.remove('agenda', a.id);
+  return dates.flatMap((d) => organize(d));
+}
 export function undoOrganize(made) { for (const r of made) store.remove('agenda', r.id); }
 // Bloque que está pasando ahora y el siguiente
 export function nowNext(date = fmt.today()) {
@@ -134,4 +139,11 @@ export function planSnapshot(date = fmt.today()) {
     tareas_top: store.list('tareas').filter((t) => !t.done).sort((a, b) => score(b) - score(a)).slice(0, 12).map((t) => `${t.title} (${t.imp || 3}×${t.urg || 3}${t.due ? ', para ' + t.due : ''})`),
     proyectos: store.list('proyectos').filter((p) => p.status !== 'terminado').map((p) => `${p.name} [${p.status}]`),
   };
+}
+// Horas de un tema: una clase fija necesita sus horas de clase y cuenta las clases marcadas ✓ en NEXO Plan
+export function topicNeed(t) { return t.type === 'fija' ? (Number(t.classMinutes) || 60) * (t.classDays || []).length : Math.round((Number(t.hoursWeek) || 0) * 60); }
+export function topicDone(t, date = fmt.today()) {
+  let m = studiedMin(t.id, date);
+  if (t.type === 'fija') { const mon = mondayOf(date); for (let i = 0; i < 7; i++) { const d = addDays(mon, i); if ((store.get('hechos', d)?.keys || []).includes('c:' + t.id)) m += Number(t.classMinutes) || 60; } }
+  return m;
 }

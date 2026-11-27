@@ -181,7 +181,7 @@ export const SCHEMA = {
   topics: { app: 'aprende', label: 'Temas de estudio (ficha por tema)', fields: [
     { k: 'name', label: 'Tema', required: true, ph: 'Filmora 16, Matemáticas, Inglés…' },
     { k: 'type', label: 'Tipo', type: 'select', options: [['fija', '🔒 Clase fija (horario del colegio o curso)'], ['obligatoria', '❗ Obligatoria (tiene que estudiarse)'], ['flexible', '↔ Flexible (cuando haya tiempo)']], default: 'flexible' },
-    { k: 'hoursWeek', label: 'Horas por semana que necesita', type: 'number', step: 0.5, default: 2 },
+    { k: 'hoursWeek', label: 'Horas por semana que necesita (obligatoria o flexible)', type: 'number', step: 0.5, default: 2 },
     { k: 'classDays', label: 'Días de clase (solo clase fija)', type: 'days', default: [] },
     { k: 'classTime', label: 'Hora de la clase', type: 'time' }, { k: 'classMinutes', label: 'Duración de la clase (min)', type: 'number', default: 60 },
     { k: 'imp', label: 'Importancia (1 a 5)', type: 'scale', default: 3 }, { k: 'urg', label: 'Urgencia (1 a 5)', type: 'scale', default: 3 },

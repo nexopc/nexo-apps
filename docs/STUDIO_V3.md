@@ -46,3 +46,9 @@ Acento rosa `#FF4F9A`, tema oscuro, mismo tamaño que los bocetos (`studio-estil
 - **Avisos**: día antes de grabar (qué llevar + qué prepara el cliente), entrega cercana sin editar, idea vieja (7 días), anotar resultados a los 7 días.
 - **Crear rápido**: plantillas de plano (general, medio, primer plano, detalle, POV… con cámara y movimiento llenos), duplicar plano/escena, dictar el plano (llena qué dice / descripción).
 - Solo el plano es obligatorio; mapa, cámara y persona son opcionales.
+
+## Detalles (ronda 4)
+- **Editar**: arriba la **lista de edición** (sacada del guion); el cronómetro va en la burbuja ⏱; debajo tomas buenas y pasos de Filmora 16.
+- **Color por cliente** (el mismo de Negocios): línea de metro, calendario y Hoy.
+- **PC**: árbol a la izquierda + plano abierto a la derecha con el mapa grande para arrastrar con el mouse.
+- **Numeración estilo claqueta**: Escena 1 · Plano A · Toma 2 (se reordena sola al mover).

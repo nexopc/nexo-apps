@@ -136,7 +136,7 @@ export const SCHEMA = {
     { k: 'hook', label: 'Gancho (primeros 3 segundos)', type: 'textarea' },
   ] },
   scripts: { app: 'studio', label: 'Guiones', fields: [
-    { k: 'title', label: 'Título', required: true }, { k: 'mold', label: 'Molde', type: 'select', options: ['Gancho-Problema-Solución-CTA', 'Antes y después', 'Top 3', 'Mito vs realidad', 'Unboxing / review', 'Tutorial rápido'] },
+    { k: 'title', label: 'Título', required: true }, { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' }, { k: 'mold', label: 'Molde', type: 'select', options: ['Gancho-Problema-Solución-CTA', 'Antes y después', 'Top 3', 'Mito vs realidad', 'Unboxing / review', 'Tutorial rápido'] },
     { k: 'body', label: 'Guion', type: 'textarea' }, { k: 'cta', label: 'Llamado a la acción' },
   ] },
   shoots: { app: 'studio', label: 'Horarios de grabación', fields: [
@@ -146,9 +146,10 @@ export const SCHEMA = {
   ] },
   videos: { app: 'studio', label: 'Estado de cada video', fields: [
     { k: 'title', label: 'Video', required: true }, { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' },
-    { k: 'status', label: 'Estado', type: 'select', options: [['idea', '💡 Idea'], ['guion', '📝 Guion'], ['grabado', '🎥 Grabado'], ['edicion', '✂️ Edición'], ['revision', '👀 Revisión'], ['publicado', '✅ Publicado']], default: 'idea' },
+    { k: 'status', label: 'Estado', type: 'select', options: [['idea', '💡 Plan'], ['guion', '📝 Guion'], ['grabado', '🎥 Grabar'], ['edicion', '✂️ Editar'], ['revision', '👀 Aprobación del cliente'], ['publicado', '✅ Entregado / publicado']], default: 'idea' },
     { k: 'platform', label: 'Red', type: 'select', options: ['TikTok', 'Instagram Reels', 'YouTube', 'YouTube Shorts', 'Facebook'] },
     { k: 'publishDate', label: 'Fecha de publicación', type: 'date' }, { k: 'link', label: 'Enlace', type: 'url' },
+    { k: 'script', label: 'Guion', type: 'ref', ref: 'scripts', refLabel: 'title' }, { k: 'shoot', label: 'Grabación', type: 'ref', ref: 'shoots', refLabel: 'title' },
   ] },
   references: { app: 'studio', label: 'Referencias guardadas', fields: [
     { k: 'title', label: 'Qué me gustó', required: true }, { k: 'link', label: 'Enlace', type: 'url' }, { k: 'note', label: 'Nota', type: 'textarea' },

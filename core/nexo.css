@@ -284,3 +284,11 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; text-wra
 @media (max-width: 760px) {
   [data-os="windows"] .shell > .login-banner, [data-os="desktop"] .shell > .login-banner, [data-os="windows"] .shell > .main, [data-os="desktop"] .shell > .main { grid-column: 1; }
 }
+/* Botones-opción (chips grandes) compartidos por las apps */
+.picks { display: flex; flex-wrap: wrap; gap: 7px; }
+.pick { min-height: 40px; padding: 8px 13px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font: 600 14px var(--font); cursor: pointer; }
+.pick.on { background: var(--accent); border-color: var(--accent); color: #0B0F15; }
+.pick.add { border-style: dashed; color: var(--accent); background: none; }
+.pick:active { transform: scale(.96); }
+.linkish { background: none; border: 0; color: var(--c-edit); font: 600 13px var(--font); padding: 4px 0; cursor: pointer; }
+.undo-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(150px + var(--safe-b)); z-index: 95; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); box-shadow: var(--shadow); }

@@ -166,7 +166,6 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; text-wra
    ====================================================== */
 
 /* iOS: títulos grandes, barra con desenfoque, sin botones de atrás (se desliza desde el borde). */
-[data-os="ios"] .back-btn { display: none !important; }
 [data-os="ios"] .page-title h1 { font-size: 32px; letter-spacing: -.02em; }
 [data-os="ios"] .bottomnav { border-top-color: transparent; box-shadow: 0 -0.5px 0 var(--line); }
 [data-os="ios"] .btn { border-radius: 14px; }
@@ -236,3 +235,40 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; text-wra
 .q4:hover { filter: brightness(1.06); transform: translateY(-2px); }
 .q4:active { transform: scale(.97); }
 @media (max-width: 420px) { .quick4 { gap: 8px; } .q4 { min-height: 76px; border-radius: 20px; font-size: 12.5px; } }
+
+/* ---------- v2: Atrás universal, ventanas con ✕, notas y cronómetro ---------- */
+.back-btn { display: none; align-items: center; gap: 2px; flex: none; height: 38px; padding: 0 10px 0 6px; margin-right: 4px; border: 0; border-radius: 10px; background: none; color: var(--c-edit); font: 600 17px var(--font); cursor: pointer; }
+.back-btn span { font-size: 15px; }
+[data-os="ios"] .back-btn { display: inline-flex; }                       /* iPhone: SIEMPRE visible */
+[data-os="ios"] .at-home .back-btn span::after { content: ""; }
+[data-os="windows"] .shell:not(.at-home) .back-btn, [data-os="desktop"] .shell:not(.at-home) .back-btn { display: inline-flex; }
+.back-btn:active { opacity: .6; }
+.sheet-head { position: sticky; top: -16px; z-index: 2; margin: -16px -16px 8px; padding: 10px 52px 6px 16px; background: var(--bg2); touch-action: none; }
+.sheet-head h2 { margin: 0; }
+.sheet-x { position: absolute; right: 10px; top: 12px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 16px; cursor: pointer; display: grid; place-items: center; }
+.notes-fab { position: fixed; right: max(16px, var(--safe-r)); bottom: calc(146px + var(--safe-b)); z-index: 25; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); font-size: 20px; display: grid; place-items: center; box-shadow: var(--shadow); cursor: pointer; }
+[data-os="ios"] .notes-fab { bottom: calc(84px + var(--safe-b)); }
+[data-os="windows"] .notes-fab, [data-os="desktop"] .notes-fab { bottom: 92px; }
+.timer-bubble { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: 99px; background: #FF8A1F; color: #140B02; font: 700 13px var(--font); cursor: pointer; max-width: 46vw; white-space: nowrap; overflow: hidden; }
+.timer-bubble[hidden] { display: none; }
+.timer-bubble .tb-dot { width: 8px; height: 8px; border-radius: 50%; background: #140B02; animation: pulse-dot 1s infinite; flex: none; }
+.timer-bubble.paused { background: var(--c-pending); } .timer-bubble.paused .tb-dot { animation: none; opacity: .4; }
+.timer-bubble .tb-l { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+@media (max-width: 520px) { .timer-bubble .tb-l { display: none; } }
+.timer-big { font: 700 54px/1 var(--display); text-align: center; letter-spacing: -.02em; }
+.notes { display: grid; gap: 10px; }
+.nq { display: flex; gap: 8px; } .nq input { flex: 1; min-height: 46px; padding: 10px 16px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font: inherit; }
+.btn-pending { --c: var(--c-pending); }
+/* barra superior: nunca más ancha que la pantalla (con ‹ Atrás + burbuja + 4 botones) */
+.brand > span:last-child { min-width: 0; overflow: hidden; }
+.brand b, .brand small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-actions { flex: none; }
+@media (max-width: 440px) {
+  .topbar { gap: 6px; }
+  .top-actions { gap: 4px; }
+  .icon-btn { width: 34px; height: 34px; }
+  .brand small { display: none; }
+  .brand .logo { width: 30px; height: 30px; }
+  .back-btn { padding: 0 6px 0 0; margin-right: 0; }
+  [data-os="ios"] .brand > span:last-child { display: none; }   /* iPhone: se prioriza "‹ Atrás" sobre el nombre */
+}

@@ -29,7 +29,7 @@ export function applyPlatform() {
   h.dataset.os = OS;
   h.dataset.standalone = String(isStandalone);
   if (isDesktopLike) enableCursorGlow();
-  if (OS === 'ios') enableEdgeSwipeBack();
+  if (OS === 'ios' && isStandalone) enableEdgeSwipeBack(); // en Safari normal el gesto ya lo hace el navegador
   if (OS === 'android') enableRipple();
 }
 
@@ -59,7 +59,7 @@ function enableRipple() {
   });
 }
 
-// iOS: no hay botón atrás; deslizar desde el borde izquierdo cierra el panel o vuelve.
+// iOS instalado: no hay botón atrás del sistema; deslizar desde el borde izquierdo cierra el panel o vuelve.
 function enableEdgeSwipeBack() {
   let x0 = null, y0 = 0;
   document.addEventListener('touchstart', (e) => {
@@ -69,7 +69,7 @@ function enableEdgeSwipeBack() {
   document.addEventListener('touchend', (e) => {
     if (x0 == null) return;
     const t = e.changedTouches[0];
-    if (t.clientX - x0 > 80 && Math.abs(t.clientY - y0) < 60) history.back();
+    if (t.clientX - x0 > 80 && Math.abs(t.clientY - y0) < 60) (window.NEXO_BACK ? window.NEXO_BACK() : history.back());
     x0 = null;
   }, { passive: true });
 }

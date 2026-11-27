@@ -56,6 +56,13 @@ function run() {
   }
   // Studio 3 → NEXO PLAN: cada escena con fecha y hora llega como cita 🔒 fija (con lugar y sus planos). Si cambias fecha/hora/lugar, se actualiza.
   for (const v of store.list('videos')) {
+    // Fecha de grabación del video (si ninguna escena tiene su propia fecha y hora)
+    if (v.grabacion && /T\d{2}:\d{2}/.test(v.grabacion) && !(v.escenas || []).some((e) => e.fecha && e.hora)) {
+      const start = new Date(v.grabacion).getTime(); const e0 = (v.escenas || [])[0];
+      const lugar = (e0 && (store.get('lugares', e0.lugar)?.name || e0.lugarTxt)) || '';
+      const nPl = (v.escenas || []).reduce((n, e) => n + (e.planos || []).length, 0);
+      if (start) sendOnce(`studio-${v.id}-video-${v.grabacion}-${lugar}`, { type: 'cita', key: `studio-${v.id}-video`, title: '🎥 Grabar: ' + v.title, start, end: start + Math.max(60, nPl * 10 + 20) * 60000, place: lugar, notes: `🎬 ${v.title} · ${(v.escenas || []).length} escena(s)` });
+    }
     (v.escenas || []).forEach((e, i) => {
       if (!e.fecha || !e.hora) return;
       const lugar = store.get('lugares', e.lugar)?.name || e.lugarTxt || '';

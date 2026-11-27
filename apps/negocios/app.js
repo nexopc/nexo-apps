@@ -1,379 +1,303 @@
-// NEXO Negocios · tu trabajo
-import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
-import { estado, P10_CSS, SEMA } from '../../core/plan10m.js';
+// NEXO Negocios v3 · tu trabajo — diseño acordado en docs/NEGOCIOS_V3.md
+// Arriba la plata del mes; abajo tus clientes como en WhatsApp (lo urgente primero). Misiones automáticas.
+import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, confirmSheet, openTimer } from '../../core/shell.js';
 import { timer, clock } from '../../core/timer.js';
-{ const st = document.createElement('style'); st.textContent = P10_CSS; document.head.appendChild(st); }
+import { generar, delDia, crearPropia, marcar, cuantas } from '../../core/misiones.js';
+import { money, cobradoMes, metaMes, semaforo, porCobrar, trabajosActivos, saldoTrabajo, historia, resumen, bumpReg, regHoy, waLink, cuando, iniciales, colorOf, cobro, daysAgo, minHora } from './datos.js';
+import { cotizar, Q, resetQ, compartirCotizacion } from './cotizar.js';
+import { planes, empresas, crearMenu } from './catalogo.js';
 
-const VERSION = '2.1.0';
-const STATUS = [['cotizado', 'Cotizado', 's-edit'], ['aprobado', 'Aprobado', 's-pending'], ['en curso', 'En curso', 's-pending'], ['entregado', 'Entregado', 's-create'], ['pagado', 'Pagado', 's-create']];
-const STAGES = [['nuevo', 'Nuevo'], ['contactado', 'Contactado'], ['reunión', 'Reunión'], ['propuesta', 'Propuesta'], ['ganado', 'Ganado'], ['perdido', 'Perdido']];
-const name = (col, id) => store.get(col, id)?.name || store.get(col, id)?.title || '';
-const minutesOf = (jobId) => store.list('timeLogs').filter((t) => t.job === jobId).reduce((a, t) => a + (Number(t.minutes) || 0), 0);
-const paidOf = (pred) => store.list('invoices').filter((i) => i.paid && pred(i)).reduce((a, i) => a + (Number(i.amount) || 0), 0);
-function hourValue() {
-  const mins = store.list('timeLogs').reduce((a, t) => a + (Number(t.minutes) || 0), 0);
-  const paid = paidOf(() => true);
-  return mins ? Math.round(paid / (mins / 60)) : 0;
-}
-const copy = async (txt) => { try { await navigator.clipboard.writeText(txt); toast('Copiado: pégalo en WhatsApp'); } catch { toast('No se pudo copiar'); } };
+const VERSION = '3.0.0';
+const clientesMod = fromSchema('clients', { id: 'clientes-f', title: 'Cliente', single: 'cliente' });
+const prospMod = fromSchema('prospects', { id: 'prospectos', title: 'Prospectos', icon: '🎯', single: 'prospecto', preset: () => ({ temp: 'tibio', stage: 'nuevo', nextDate: fmt.today() }) });
+const jobMod = fromSchema('jobs', { id: 'trabajo-f', title: 'Trabajo', single: 'trabajo' });
+let filtro = 'todos', buscar = '';
 
-// ---------- Módulos simples ----------
-const minHora = () => Number(cfg10().minimoHora) || 35000;
-// Valores que salen solos de los datos base: horas reales (cronómetro), costos y precio → ganancia por hora y precio mínimo
-function derived(svc) {
-  const jobs = store.list('jobs').filter((j) => j.service === svc.id && minutesOf(j.id) > 0);
-  const real = jobs.length ? jobs.reduce((a, j) => a + minutesOf(j.id), 0) / jobs.length / 60 : 0;
-  const hours = real || Number(svc.hours) || 0;
-  const costos = Number(svc.costos) || 0;
-  const precio = Number(svc.price) || 0;
-  return { real: Math.round(real * 10) / 10, hours, costos, porHora: hours ? Math.round((precio - costos) / hours) : 0, minimo: Math.round(hours * minHora() + costos), medidos: jobs.length };
+// ---------- Misiones (se usan en Clientes y en Mi día) ----------
+function misionesHtml(compact = false) {
+  generar(fmt.today());
+  const ms = delDia(); const done = ms.filter((m) => m.done).length; const sem = semaforo();
+  return `<div class="card mis"><div class="row" style="justify-content:space-between"><b>🎯 Misiones de hoy <span class="muted num">${done}/${ms.length}</span></b>
+      <span class="muted" style="font-size:11.5px">${sem ? { rojo: '🔴', amarillo: '🟡', verde: '🟢' }[sem.color] + ' ' + sem.txt.toLowerCase() + ' → ' + cuantas() + ' automáticas' : ''}</span></div>
+    <div class="bar" style="margin:6px 0 4px"><i style="width:${ms.length ? done / ms.length * 100 : 0}%"></i></div>
+    ${(compact ? ms.filter((m) => !m.done).slice(0, 3) : ms).map((m) => `<div class="mrow ${m.done ? 'done' : ''}"><button class="check" data-mis="${m.id}" aria-pressed="${!!m.done}" aria-label="Marcar">✓</button><span class="mt" data-mgo="${m.id}">${esc(m.title)}</span>${m.sola ? '<span class="chip s-create">sola</span>' : ''}</div>`).join('') || '<p class="muted" style="margin:4px 0">Sin misiones: vas al día.</p>'}
+    ${compact && ms.filter((m) => !m.done).length > 3 ? `<button class="linkish" data-go="midia">Ver las ${ms.filter((m) => !m.done).length}</button>` : ''}
+    ${compact ? '' : '<form class="nq" data-misnew style="margin-top:8px"><input name="q" placeholder="＋ Tu propia misión… Enter" autocomplete="off" enterkeyhint="done"><button class="btn btn-create sm">＋</button></form><p class="muted" style="font-size:12px;margin:6px 0 0">Se marcan solas cuando cobras, cotizas o registras el seguimiento. En NEXO PLAN, ⚡ Organizar las pone en tus ratos libres.</p>'}
+  </div>`;
 }
-const ESTADO = { activa: ['🟢', 'Activa'], pausada: ['⏸', 'Pausada'], futura: ['📅', 'Empieza'] };
-const fuentes = fromSchema('sources', { id: 'fuentes', title: 'Fuentes', icon: '🧭', single: 'fuente de ingreso',
-  render(el) {
-    const m = fmt.today().slice(0, 7);
-    const ss = store.list('sources');
-    el.innerHTML = `<p class="muted" style="margin:0 0 12px">Cada empresa o fuente con sus planes. Toca una para ver y editar sus planes.</p>
-      <div class="grid">${ss.map((x) => { const v = paidOf((i) => store.get('jobs', i.job)?.source === x.id && (i.date || '').startsWith(m)); const meta = Number(x.metaMes) || 0; const [ic, lb] = ESTADO[x.estado || 'activa'];
-        return `<button class="card src" data-src="${x.id}" style="--k:${esc(x.color || 'var(--accent)')}"><div class="row" style="justify-content:space-between"><b>${esc(x.name)}</b><span class="chip">${ic} ${lb}${x.estado === 'futura' && x.inicio ? ' ' + fmt.date(x.inicio) : ''}</span></div>
-          <span class="muted" style="font-size:13px">${store.list('services').filter((s) => s.source === x.id).length} planes · ${store.list('combos').filter((c) => c.source === x.id).length} combos</span>
-          <div class="bar"><i style="width:${meta ? Math.min(100, (v / meta) * 100) : 0}%;background:var(--k)"></i></div>
-          <span class="num" style="font-size:13px">${fmt.money(v)}${meta ? ' de ' + fmt.money(meta) : ''} este mes</span></button>`; }).join('')}</div>
-      <button class="btn btn-create ghost" data-a="new" style="width:100%;margin-top:12px">＋ Nueva empresa o fuente de ingreso</button>`;
-    el.onclick = (e) => {
-      if (e.target.closest('[data-a=new]')) return openForm(fuentes, null, { estado: 'activa' });
-      const c = e.target.closest('[data-src]'); if (c) fuenteDetalle(store.get('sources', c.dataset.src));
-    };
-  } });
-function fuenteDetalle(src) {
-  const body = h('<div class="form"></div>');
+function misionesClick(e, api) {
+  const c = e.target.closest('[data-mis]'); if (c) { const m = store.get('misiones', c.dataset.mis); marcar(m.id, !m.done); navigator.vibrate?.(10); if (!m.done) toast('🎯 ¡Misión cumplida!'); return true; }
+  const g = e.target.closest('[data-mgo]');
+  if (g) { const m = store.get('misiones', g.dataset.mgo); const r = m?.ref || {};
+    if (m.client) { fichaCliente(m.client); return true; }
+    if (m.prospect || r.col === 'prospects') { fichaProspecto(m.prospect || r.id); return true; }
+    if (m.type === 'contactos') { api.go('midia'); return true; } return true; }
+  if (e.target.closest('[data-go=midia]')) { api.go('midia'); return true; }
+  return false;
+}
+
+// ---------- 💬 Clientes (inicio) ----------
+function home(el, api) {
+  const cob = cobradoMes(), meta = metaMes(), sem = semaforo(), debe = porCobrar();
+  const cs = store.list('clients').map((c) => ({ c, r: resumen(c) }));
+  let list = cs;
+  if (filtro === 'cobrar') list = cs.filter((x) => x.r.debe > 0);
+  if (filtro === 'sinresp') list = cs.filter((x) => x.r.sinResp);
+  if (buscar) list = list.filter((x) => (x.c.name + ' ' + (x.c.negocio || '')).toLowerCase().includes(buscar.toLowerCase()));
+  list.sort((a, b) => b.r.urg - a.r.urg || String(b.r.at || '').localeCompare(String(a.r.at || '')));
+  el.innerHTML = `
+    <button class="card money" data-go="cobros">
+      <div class="row" style="justify-content:space-between;align-items:flex-end"><div><span class="muted" style="font-size:12px">Cobrado en ${new Date().toLocaleDateString('es-CO', { month: 'long' })}</span><div class="num big">${money(cob)}</div></div>${meta ? `<div style="text-align:right;font-size:12px"><span class="muted">meta</span><br><b class="num">${money(meta)}</b></div>` : ''}</div>
+      ${meta ? `<div class="bar" style="margin:8px 0"><i style="width:${Math.min(100, cob / meta * 100)}%"></i></div>` : ''}
+      <div class="row" style="justify-content:space-between;font-size:12.5px">${sem ? `<span><i class="luz ${sem.color}"></i> <b>${sem.txt}</b>${sem.dia ? ' · ' + money(sem.dia) + '/día' : ''}</span>` : '<span class="muted">Ponle meta a tus empresas en Más → Empresas</span>'}<span>💵 <b class="num">${money(debe)}</b> por cobrar</span></div>
+    </button>
+    ${misionesHtml(true)}
+    <input class="search" type="search" placeholder="🔎 Buscar cliente…" value="${esc(buscar)}" aria-label="Buscar cliente">
+    <div class="picks" style="margin:8px 0">${[['todos', 'Todos'], ['cobrar', '💵 Por cobrar ' + cs.filter((x) => x.r.debe > 0).length], ['sinresp', '⏳ Sin respuesta ' + cs.filter((x) => x.r.sinResp).length]].map(([k, l]) => `<button class="pick sm ${filtro === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
+    <div class="clist">${list.map(({ c, r }) => `<button class="cli" data-c="${c.id}"><span class="av" style="--k:${esc(colorOf(r.source))}">${esc(iniciales(c.name))}</span>
+      <span class="cm"><b>${esc(c.name)}</b><small>${r.last ? esc(r.last.ic + ' ' + r.last.t) : esc(c.negocio || 'Sin movimientos todavía')}</small>${r.source ? `<em style="--k:${esc(colorOf(r.source))}">${esc(store.get('sources', r.source)?.name || '')}</em>` : ''}</span>
+      <span class="cr"><small>${r.at ? cuando(r.at) : ''}</small>${r.debe > 0 ? `<span class="badge">cobrar ${money(r.debe)}</span>` : r.sinResp ? '<span class="chip s-pending">⏳ seguir</span>' : ''}</span></button>`).join('') || `<div class="empty"><b>${buscar || filtro !== 'todos' ? 'Nadie con ese filtro' : 'Todavía no tienes clientes'}</b>${buscar || filtro !== 'todos' ? '' : 'Cuando cotices o ganes un prospecto aparecen aquí. También puedes agregar uno: <button class="linkish" data-a="newc">＋ Cliente</button>'}</div>`}</div>`;
+  const s = el.querySelector('.search'); s.oninput = () => { buscar = s.value; const pos = s.selectionStart; api.paint(); const n = document.querySelector('.search'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+  el.onclick = (e) => {
+    if (misionesClick(e, api)) return;
+    const g = (x) => e.target.closest(x); let b;
+    if ((b = g('[data-go]'))) return api.go(b.dataset.go);
+    if ((b = g('[data-f]'))) { filtro = b.dataset.f; return api.paint(); }
+    if ((b = g('[data-c]'))) return fichaCliente(b.dataset.c, api);
+    if (g('[data-a=newc]')) openForm(clientesMod);
+  };
+}
+
+// ---------- Ficha del cliente (historia tipo chat) ----------
+export function fichaCliente(cid, api) {
+  const body = h('<div class="ficha"></div>');
   let un = null;
-  sheet(src.name, body, { onClose: () => un?.() });
+  const s = sheet('Cliente', body, { onClose: () => un?.() });
   const paint = () => {
-    const svcs = store.list('services').filter((x) => x.source === src.id).sort((a, b) => (a.name + a.price).localeCompare(b.name + b.price));
-    body.innerHTML = `<div class="row"><button class="btn btn-edit ghost sm" data-a="edit">✎ Editar fuente</button><button class="btn btn-create sm" data-a="plan">＋ Plan</button></div>
-      ${svcs.map((x) => { const d = derived(x); return `<div class="card plan" data-svc="${x.id}">
-        <div class="row" style="justify-content:space-between"><b>${esc(x.name)}${x.plan ? ' · ' + esc(x.plan) : ''}</b><b class="num">${fmt.money(x.price)}${x.mensual ? '/mes' : ''}</b></div>
-        <div class="dv num"><span>⏱ ${d.hours ? d.hours + ' h' : '—'}${d.real ? ' <i>(medido en ' + d.medidos + ')</i>' : x.hours ? ' <i>(estimado)</i>' : ''}</span><span>💸 costos ${fmt.money(d.costos)}</span>
-        <span class="${d.porHora && d.porHora < minHora() ? 'down' : 'up'}">${d.porHora ? fmt.money(d.porHora) + '/h' : '— /h'}</span><span>mínimo ${d.hours ? fmt.money(d.minimo) : '—'}</span></div></div>`; }).join('') || '<div class="empty"><b>Sin planes</b>Agrega el primero con ＋ Plan.</div>'}
-      <p class="muted" style="font-size:12px;margin:0">Gris = sale solo: horas del cronómetro, costos y tu hora mínima (${fmt.money(minHora())}). Tú cambias precio, extras y qué incluye.</p>`;
+    const c = store.get('clients', cid); if (!c) return s.close();
+    const r = resumen(c); const hs = historia(cid).slice(-40);
+    const jobs = store.list('jobs').filter((j) => j.client === cid && j.status !== 'cotizado');
+    const qs = store.list('cotizaciones').filter((q) => q.client === cid && ['enviada', 'vencida', 'borrador'].includes(q.status));
+    const pagado = store.list('abonos').filter((a) => store.get('jobs', a.job)?.client === cid).reduce((x, a) => x + (Number(a.amount) || 0), 0);
+    body.innerHTML = `<div class="fhead"><span class="av big" style="--k:${esc(colorOf(r.source))}">${esc(iniciales(c.name))}</span><div><b class="fn">${esc(c.name)}</b>
+        <div class="muted" style="font-size:12.5px">${[store.get('sources', r.source)?.name, c.negocio, c.createdAt ? 'cliente desde ' + fmt.date(c.createdAt.slice(0, 10)) : ''].filter(Boolean).map(esc).join(' · ')}</div>
+        <div class="muted" style="font-size:12.5px">${[c.contact && '📱 ' + c.contact, c.address && '📍 ' + c.address, c.ig && '📸 ' + c.ig, c.tiktok && '🎵 ' + c.tiktok].filter(Boolean).map(esc).join(' · ')}</div></div></div>
+      <div class="acts"><button data-a="wa"><i>💬</i>WhatsApp</button><button data-a="cot"><i>🧮</i>Cotizar</button><button data-a="cobrar"><i>💵</i>Cobrar</button><button data-a="nota"><i>📝</i>Nota</button></div>
+      ${qs.map((q) => `<div class="card qcard"><div class="row" style="justify-content:space-between"><b>🧮 ${esc(q.number || '')} · ${esc(q.title)}</b><b class="num">${money(q.total)}</b></div>
+        <span class="muted" style="font-size:12px">${q.status === 'enviada' ? `Enviada ${cuando(q.sentAt)} · vence ${fmt.date(q.expiresAt)}` : q.status === 'vencida' ? '⌛ Vencida' : 'Borrador'}</span>
+        <div class="row" style="margin-top:6px">${q.status !== 'borrador' ? `<button class="btn btn-create sm" data-ok="${q.id}">✅ Aprobó</button>` : ''}${q.status === 'enviada' ? `<button class="btn btn-edit ghost sm" data-seg="${q.id}">🔁 Ya le hice seguimiento</button>` : `<button class="btn btn-edit ghost sm" data-re="${q.id}">📄 ${q.status === 'borrador' ? 'Enviar' : 'Reenviar'}</button>`}<button class="btn btn-delete ghost sm" data-no="${q.id}">✕ No aceptó</button></div></div>`).join('')}
+      ${jobs.filter((j) => j.status !== 'pagado').map((j) => { const sd = saldoTrabajo(j); return `<div class="card qcard"><div class="row" style="justify-content:space-between"><b>🛠 ${esc(j.title)}</b><span class="chip">${esc(j.status)}</span></div>
+        <div class="bar" style="margin:6px 0"><i style="width:${j.price ? (j.price - sd) / j.price * 100 : 0}%;background:var(--c-create)"></i></div><span class="muted num" style="font-size:12px">Pagado ${money(j.price - sd)} de ${money(j.price)}${j.due ? ' · entrega ' + fmt.date(j.due) : ''}</span>
+        <div class="row" style="margin-top:6px">${j.status === 'aprobado' ? `<button class="btn btn-edit ghost sm" data-st="${j.id}|en curso">▶ Empecé</button>` : j.status === 'en curso' ? `<button class="btn btn-edit ghost sm" data-st="${j.id}|entregado">📦 Entregué</button>` : ''}${sd > 0 ? `<button class="btn btn-create sm" data-ab="${j.id}">💵 Abono</button>` : ''}<button class="btn btn-cancel ghost sm" data-tm="${j.id}">⏱</button></div></div>`; }).join('')}
+      <div class="tl">${hs.map((e) => `<div class="ev"><span class="dot">${e.ic}</span><div class="bub"><span>${esc(e.t)}</span><small>${fmt.date(String(e.at).slice(0, 10))}${e.s ? ' · ' + esc(e.s) : ''}</small></div></div>`).join('') || '<p class="muted">Sin historia todavía.</p>'}</div>
+      <div class="card row" style="justify-content:space-between;font-size:13px"><span class="muted">Te ha pagado</span><b class="num up">${money(pagado)}</b><span class="muted">Te debe</span><b class="num">${money(r.debe)}</b></div>
+      <div class="row end"><button class="btn btn-edit ghost sm" data-a="edit">✎ Editar datos</button></div>`;
   };
   paint();
-  un = store.subscribe('services', paint);
+  un = store.subscribe('*', (col) => { if (['clients', 'jobs', 'abonos', 'cotizaciones', 'clientLog', 'invoices'].includes(col)) paint(); });
+  body.addEventListener('click', async (e) => {
+    const g = (x) => e.target.closest(x); let b;
+    const c = store.get('clients', cid);
+    if ((b = g('[data-ok]'))) return aprobar(store.get('cotizaciones', b.dataset.ok));
+    if ((b = g('[data-seg]'))) { store.update('cotizaciones', b.dataset.seg, { followAt: fmt.today() }); bumpReg('seguimientos'); toast('🔁 Seguimiento anotado'); return; }
+    if ((b = g('[data-re]'))) { const q = store.get('cotizaciones', b.dataset.re); const exp = new Date(); exp.setDate(exp.getDate() + 3); store.update('cotizaciones', q.id, { status: 'enviada', sentAt: new Date().toISOString(), expiresAt: exp.toISOString().slice(0, 10) }); if (q.status === 'borrador') bumpReg('cotizaciones'); await compartirCotizacion(store.get('cotizaciones', q.id)); return; }
+    if ((b = g('[data-no]'))) { if (await confirmSheet('¿No aceptó?', 'La cotización queda como no aceptada en su historia.', { yes: 'Sí, no aceptó', danger: true })) store.update('cotizaciones', b.dataset.no, { status: 'rechazada' }); return; }
+    if ((b = g('[data-st]'))) { const [id, st] = b.dataset.st.split('|'); store.update('jobs', id, { status: st, ...(st === 'entregado' ? { deliveredAt: fmt.today() } : {}) }); toast(st === 'entregado' ? '📦 Entregado: toca 💵 Abono cuando te pague el saldo' : '▶ En curso'); return; }
+    if ((b = g('[data-ab]'))) return abonoSheet(b.dataset.ab);
+    if ((b = g('[data-tm]'))) { const j = store.get('jobs', b.dataset.tm); return openTimer({ label: j.title, kind: 'trabajo', job: j.id, source: j.source }); }
+    const a = g('[data-a]')?.dataset.a;
+    if (a === 'wa') plantillas(c);
+    if (a === 'cot') { s.close(); resetQ({ client: cid, marca: c.source || Q.marca }); setTimeout(() => document.querySelector('[data-nav=cotizar]')?.click(), 280); }
+    if (a === 'cobrar') { const js = store.list('jobs').filter((j) => j.client === cid && ['aprobado', 'en curso', 'entregado'].includes(j.status) && saldoTrabajo(j) > 0); if (!js.length) return toast('No te debe nada ✓'); abonoSheet(js.length === 1 ? js[0].id : null, cid); }
+    if (a === 'nota') { const f = h('<form class="form"><textarea id="nt" rows="3" placeholder="Prefiere que lo llamen después de las 2 p. m."></textarea><div class="row end"><button class="btn btn-create">Guardar nota</button></div></form>'); const s2 = sheet('📝 Nota de ' + c.name, f); f.addEventListener('submit', (ev) => { ev.preventDefault(); const v = f.querySelector('#nt').value.trim(); if (!v) return; store.add('clientLog', { client: cid, kind: 'nota', text: v }); s2.close(); }); setTimeout(() => f.querySelector('#nt').focus(), 300); }
+    if (a === 'edit') openForm(clientesMod, c);
+  });
+  return s;
+}
+
+// Plantillas de WhatsApp
+function plantillas(c) {
+  const co = cobro(); const firma = '\n— ' + (co.nombre || 'Cristóbal');
+  const q = store.list('cotizaciones').filter((x) => x.client === c.id && ['enviada', 'vencida'].includes(x.status)).sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt)))[0];
+  const jd = store.list('jobs').filter((j) => j.client === c.id && saldoTrabajo(j) > 0 && ['aprobado', 'en curso', 'entregado'].includes(j.status))[0];
+  const jl = store.list('jobs').filter((j) => j.client === c.id && ['en curso', 'entregado'].includes(j.status))[0];
+  const pagos = [co.nequi && 'Nequi ' + co.nequi, co.daviplata && 'Daviplata ' + co.daviplata, co.banco && co.cuenta && `${co.banco} ${co.cuenta}`].filter(Boolean).join(' · ');
+  const combo = store.list('combos')[0];
+  const T = [
+    ['seg', '🔁 Seguimiento', `Hola ${c.name} 👋 ¿Pudiste revisar la cotización${q ? ' de ' + q.title + ' (' + money(q.total) + ')' : ''}? Si quieres te muestro un ejemplo de un trabajo parecido. Quedo atento.` + firma],
+    ['pago', '💵 Recordatorio de pago', `Hola ${c.name} 👋 Te escribo por el saldo${jd ? ' de ' + jd.title : ''}: ${money(jd ? saldoTrabajo(jd) : 0)}.${pagos ? ' Puedes pagar por ' + pagos + '.' : ''} ¡Gracias!` + firma],
+    ['listo', '📦 Trabajo listo', `Hola ${c.name} 👋 ¡Tu ${jl ? jl.title : 'trabajo'} está listo! Te lo comparto para que lo revises y me digas si quieres algún ajuste.` + firma],
+    ['promo', '🎁 Saludo / promo', `Hola ${c.name} 👋 ¿Cómo va el negocio? Este mes tengo ${combo ? 'el combo ' + combo.name + ' a ' + money(combo.price) : 'promociones para clientes como tú'}. ¿Te cuento?` + firma],
+  ];
+  const body = h(`<div class="form">${T.map(([k, l, t]) => `<button class="tpl" data-t="${k}"><b>${l}</b><span>${esc(t)}</span></button>`).join('')}${c.contact ? '' : '<p class="muted" style="font-size:12px;margin:0">Este cliente no tiene WhatsApp guardado: se abrirá para que elijas el chat.</p>'}</div>`);
+  const s = sheet('💬 WhatsApp a ' + c.name, body);
+  body.onclick = (e) => {
+    const b = e.target.closest('[data-t]'); if (!b) return;
+    const t = T.find((x) => x[0] === b.dataset.t);
+    window.open(waLink(c.contact, t[2]), '_blank', 'noopener');
+    store.add('clientLog', { client: c.id, kind: 'whatsapp', text: t[1] + ' enviado' });
+    if (b.dataset.t === 'seg' && q) { store.update('cotizaciones', q.id, { followAt: fmt.today() }); bumpReg('seguimientos'); }
+    s.close();
+  };
+}
+function aprobar(q) {
+  if (!q) return;
+  const job = store.add('jobs', { title: q.title, client: q.client, source: q.source, service: q.service || '', price: q.total, anticipo: q.anticipoPct ?? 50, status: 'aprobado', quote: q.id, fundador: !!q.desc?.fundador });
+  store.update('cotizaciones', q.id, { status: 'aprobada', approvedAt: fmt.today(), job: job.id });
+  bumpReg('ventas');
+  toast('✅ ¡Venta! Se creó el trabajo; registra el anticipo cuando te pague');
+  setTimeout(() => abonoSheet(job.id), 400);
+}
+export function abonoSheet(jobId, clientId) {
+  const opciones = store.list('jobs').filter((j) => (jobId ? j.id === jobId : j.client === clientId) && saldoTrabajo(j) > 0);
+  let jid = jobId || opciones[0]?.id;
+  const body = h('<form class="form" novalidate></form>');
+  const s = sheet('💵 Registrar pago', body);
+  const paint = () => {
+    const j = store.get('jobs', jid); const sd = j ? saldoTrabajo(j) : 0; const pag = j ? j.price - sd : 0; const ant = j ? Math.round(j.price * (Number(j.anticipo ?? 50) / 100)) : 0;
+    const accs = store.list('accounts');
+    body.innerHTML = `${opciones.length > 1 ? `<div class="picks">${opciones.map((o) => `<button type="button" class="pick ${o.id === jid ? 'on' : ''}" data-j="${o.id}">${esc(o.title)}</button>`).join('')}</div>` : `<b>${esc(j?.title || '')}</b>`}
+      <p class="muted num" style="margin:0">Pagado ${money(pag)} de ${money(j?.price)} · falta <b style="color:var(--fg)">${money(sd)}</b></p>
+      <div class="picks">${pag < ant ? `<button type="button" class="pick" data-v="${ant - pag}" data-k="anticipo">Anticipo ${money(ant - pag)}</button>` : ''}<button type="button" class="pick" data-v="${sd}" data-k="saldo">Todo el saldo ${money(sd)}</button></div>
+      <div class="field"><label for="av">Valor</label><input id="av" type="number" inputmode="numeric" step="1000" min="0" placeholder="$"></div>
+      ${accs.length ? `<div class="field"><label for="ac">Entra a la cuenta</label><select id="ac">${accs.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>` : ''}
+      <div class="row end"><button class="btn btn-create">✓ Guardar pago</button></div>`;
+  };
+  paint();
+  let kind = 'abono';
   body.addEventListener('click', (e) => {
-    const a = e.target.closest('[data-a]')?.dataset.a;
-    if (a === 'edit') return openForm(fuentes, src);
-    if (a === 'plan') return openForm(servicios, null, { source: src.id, anticipo: 50 });
-    const p = e.target.closest('[data-svc]'); if (p) openForm(servicios, store.get('services', p.dataset.svc));
+    const b = e.target.closest('[data-j]'); if (b) { jid = b.dataset.j; return paint(); }
+    const v = e.target.closest('[data-v]'); if (v) { body.querySelector('#av').value = v.dataset.v; kind = v.dataset.k; }
+  });
+  body.addEventListener('submit', (e) => {
+    e.preventDefault(); const j = store.get('jobs', jid); if (!j) return;
+    const val = Number(body.querySelector('#av').value) || 0; if (val <= 0) return toast('Escribe el valor');
+    const sd = saldoTrabajo(j); if (val > sd + 1) return toast(`El saldo es ${money(sd)}: no puede ser más`);
+    store.add('abonos', { job: j.id, amount: val, kind: val >= sd ? (j.price - sd > 0 ? 'saldo' : kind) : kind, date: fmt.today(), account: body.querySelector('#ac')?.value || '' });
+    toast(val >= sd ? '✅ Pagado completo · entró a Finanzas' : `💵 ${money(val)} registrado · entró a Finanzas`); s.close();
   });
 }
 
-// ---------- Calculadora: ¿cuánto me cuesta este trabajo? ----------
-const calculadora = { id: 'calculadora', title: 'Calculadora', icon: '🧮',
+// ---------- 🎯 Prospectos (lista aparte, simple) ----------
+const prospectos = { ...prospMod,
   render(el) {
-    const C = calculadora.st || (calculadora.st = { horas: 4, costos: 20000, margen: 30 });
-    const paint = () => {
-      const base = C.horas * minHora() + C.costos;
-      const sug = Math.ceil((base * (1 + C.margen / 100)) / 1000) * 1000;
-      el.innerHTML = `<div class="card calc">
-        ${[['horas', '⏱ Horas reales', [-1, -0.5, 0.5, 1], (v) => v + ' h'], ['costos', '💸 Costos (datos, transporte, materiales)', [-10000, -5000, 5000, 10000], fmt.money], ['margen', '📈 Ganancia extra', [-10, -5, 5, 10], (v) => v + ' %']].map(([k, l, st, f]) => `
-          <div class="crow"><span>${l}</span><div class="row" style="gap:6px;flex-wrap:nowrap">${st.slice(0, 2).map((d) => `<button class="btn btn-cancel sm" data-k="${k}" data-d="${d}">${d > 0 ? '+' : '−'}</button>`).join('')}<b class="num" style="min-width:92px;text-align:center">${f(C[k])}</b>${st.slice(2).map((d) => `<button class="btn btn-create sm" data-k="${k}" data-d="${d}">+</button>`).join('')}</div></div>`).join('')}
-        <div class="crow"><span>Tu hora mínima</span><b class="num">${fmt.money(minHora())}</b></div></div>
-        <div class="grid k section"><div class="card kpi"><div class="v num">${fmt.money(base)}</div><div class="l">precio mínimo (no cobres menos)</div></div>
-        <div class="card kpi"><div class="v num up">${fmt.money(sug)}</div><div class="l">precio sugerido</div></div>
-        <div class="card kpi"><div class="v num">${fmt.money(C.horas ? Math.round((sug - C.costos) / C.horas) : 0)}</div><div class="l">ganas por hora</div></div></div>`;
-    };
-    paint();
-    el.onclick = (e) => { const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; const d = Number(b.dataset.d);
-      C[k] = Math.max(0, Math.round((C[k] + d) * 10) / 10); navigator.vibrate?.(6); paint(); };
+    const ps = store.list('prospects').filter((p) => !['ganado', 'perdido'].includes(p.stage));
+    const cal = ps.filter((p) => p.temp === 'caliente');
+    const posible = ps.reduce((a, p) => a + (Number(p.potential) || 0), 0);
+    const hoy = ps.filter((p) => p.nextDate && p.nextDate <= fmt.today());
+    ps.sort((a, b) => (a.nextDate || '9999').localeCompare(b.nextDate || '9999') || ({ caliente: 0, tibio: 1, frio: 2 }[a.temp || 'tibio'] - { caliente: 0, tibio: 1, frio: 2 }[b.temp || 'tibio']));
+    el.innerHTML = `<div class="card psum"><div><b class="num">🔥 ${cal.length}</b><small>calientes</small></div><div><b class="num up">${money(posible)}</b><small>posibles</small></div><div><b class="num">${hoy.length}</b><small>para hoy</small></div></div>
+      <div class="clist section">${ps.map((p) => `<button class="cli" data-p="${p.id}"><span class="av t-${p.temp || 'tibio'}">${{ caliente: '🔥', tibio: '🌤', frio: '❄️' }[p.temp || 'tibio']}</span>
+        <span class="cm"><b>${esc(p.name)}</b><small>${esc(p.next || 'Sin próximo paso')}${p.interest ? ' · ' + esc(p.interest) : ''}</small></span>
+        <span class="cr"><small class="${p.nextDate && p.nextDate < fmt.today() ? 'down' : ''}">${p.nextDate ? (p.nextDate === fmt.today() ? 'hoy' : fmt.date(p.nextDate)) : ''}</small>${p.potential ? `<b class="num" style="font-size:12.5px">${money(p.potential)}</b>` : ''}</span></button>`).join('') || '<div class="empty"><b>Sin prospectos</b>Toca ＋ para anotar el primer negocio que visitaste.</div>'}</div>
+      ${store.list('prospects').some((p) => ['ganado', 'perdido'].includes(p.stage)) ? `<p class="muted" style="font-size:12px">${store.list('prospects').filter((p) => p.stage === 'ganado').length} ganados · ${store.list('prospects').filter((p) => p.stage === 'perdido').length} perdidos</p>` : ''}`;
+    el.onclick = (e) => { const b = e.target.closest('[data-p]'); if (b) fichaProspecto(b.dataset.p); };
   } };
-const servicios = fromSchema('services', { id: 'servicios', title: 'Planes', icon: '🧾', single: 'plan',
-  titleOf: (r) => r.name + (r.plan ? ' · ' + r.plan : ''), subOf: (r) => [name('sources', r.source), r.hours ? r.hours + ' h' : ''].filter(Boolean).map(esc).join(' · '),
-  sideOf: (r) => { const d = derived(r); return `${fmt.money(r.price)}${d.porHora ? `<div class="${d.porHora < minHora() ? 'down' : 'muted'}" style="font-size:11px">${fmt.money(d.porHora)}/h</div>` : ''}`; } });
-const combos = fromSchema('combos', { id: 'combos', title: 'Combos', icon: '🎁', single: 'combo', titleOf: (r) => r.name, subOf: (r) => esc(r.items || ''), sideOf: (r) => fmt.money(r.price) });
-
-// ---------- Clientes con historial ----------
-const clientes = fromSchema('clients', { id: 'clientes', title: 'Clientes', icon: '🤝', single: 'cliente',
-  titleOf: (r) => r.name,
-  subOf: (r) => `${store.list('jobs').filter((j) => j.client === r.id).length} trabajos · ${esc(r.kind || '')}`,
-  sideOf: (r) => `<span class="up num">${fmt.money(paidOf((i) => i.client === r.id))}</span>`,
-  render(el, api) {
-    api.renderList(el, { ...clientes, render: null });
-    el.onclick = (e) => {
-      const it = e.target.closest('.list-item'); if (!it) return;
-      const c = store.get('clients', it.dataset.id);
-      const jobs = store.list('jobs').filter((j) => j.client === c.id);
-      const invs = store.list('invoices').filter((i) => i.client === c.id);
-      const body = h(`<div class="form">
-        <div class="grid k"><div class="card kpi"><div class="v num up">${fmt.money(paidOf((i) => i.client === c.id))}</div><div class="l">te ha pagado</div></div>
-        <div class="card kpi"><div class="v num">${fmt.money(invs.filter((i) => !i.paid).reduce((a, i) => a + (+i.amount || 0), 0))}</div><div class="l">por cobrar</div></div></div>
-        ${c.contact ? `<p style="margin:0">📱 <span class="num" style="user-select:all">${esc(c.contact)}</span></p>` : ''}
-        <h3>Historial</h3><div class="list">${[...jobs.map((j) => ({ d: j.due || j.createdAt, t: `🛠 ${j.title}`, s: j.status })), ...invs.map((i) => ({ d: i.date, t: `🧾 Cobro ${i.number || ''} ${fmt.money(i.amount)}`, s: i.paid ? 'pagado' : 'pendiente' }))].sort((a, b) => (b.d || '').localeCompare(a.d || '')).map((x) => `<div class="list-item" style="cursor:default"><div class="li-main"><div class="li-title">${esc(x.t)}</div><div class="li-sub">${fmt.date((x.d || '').slice(0, 10))}</div></div><span class="chip">${esc(x.s)}</span></div>`).join('') || '<p class="muted">Sin historial todavía.</p>'}</div>
-        <div class="row end"><button class="btn btn-edit" data-a="edit">✏️ Editar cliente</button><button class="btn btn-create" data-a="job">＋ Trabajo</button></div></div>`);
-      const s = sheet(c.name, body);
-      body.onclick = (ev) => { const a = ev.target.closest('[data-a]')?.dataset.a; if (a === 'edit') { s.close(); setTimeout(() => openForm(clientes, c), 300); } if (a === 'job') { s.close(); setTimeout(() => openForm(trabajos, null, { client: c.id }), 300); } };
-    };
-  } });
-
-// ---------- Trabajos (tablero por estado) ----------
-const trabajos = fromSchema('jobs', { id: 'trabajos', title: 'Trabajos', icon: '🛠', single: 'trabajo',
-  render(el) {
-    const jobs = store.list('jobs');
-    el.innerHTML = `<div class="board">${STATUS.map(([k, l, c]) => { const js = jobs.filter((j) => (j.status || 'cotizado') === k);
-      return `<section class="lane"><header><span class="chip ${c}">${l}</span><span class="muted num">${js.length}</span></header>
-      ${js.map((j) => `<div class="jcard" data-id="${j.id}"><b>${esc(j.title)}</b><span class="muted">${esc(name('clients', j.client))}</span>
-        <div class="row" style="justify-content:space-between"><span class="num">${fmt.money(j.price)}</span>${j.due ? `<span class="chip ${j.due < fmt.today() && k !== 'pagado' && k !== 'entregado' ? 's-delete' : ''}">📅 ${fmt.date(j.due)}</span>` : ''}</div>
-        ${k !== 'pagado' ? `<button class="btn btn-edit ghost sm" data-next="${j.id}">Mover a ${STATUS[STATUS.findIndex((s) => s[0] === k) + 1][1]} →</button>` : ''}</div>`).join('')}</section>`; }).join('')}</div>`;
-    el.onclick = (e) => {
-      const n = e.target.closest('[data-next]');
-      if (n) { const j = store.get('jobs', n.dataset.next); const i = STATUS.findIndex((s) => s[0] === (j.status || 'cotizado'));
-        const next = STATUS[i + 1][0];
-        store.update('jobs', j.id, { status: next });
-        if (next === 'entregado' && !store.list('invoices').some((x) => x.job === j.id)) toast('Entregado ✓ · crea la cuenta de cobro en 🧾 Cobros');
-        return; }
-      const c = e.target.closest('.jcard'); if (c) openForm(trabajos, store.get('jobs', c.dataset.id));
-    };
-  } });
-
-// ---------- Cotizador en vivo (planes, extras, precio fundador, combos) ----------
-const cfg10 = () => store.get('config', 'plan10m') || {};
-let Q = { tab: 'servicios', marca: '', svc: '', plan: '', extras: {}, opc: {}, fundador: false, client: '' };
-function todayReg() { return store.list('registroDiario').find((r) => r.date === fmt.today()); }
-function bumpReg(k, n = 1) {
-  const r = todayReg();
-  if (r) store.update('registroDiario', r.id, { [k]: Math.max(0, (Number(r[k]) || 0) + n) });
-  else store.add('registroDiario', { date: fmt.today(), [k]: Math.max(0, n) });
-}
-const fundadorUsados = () => store.list('jobs').filter((j) => j.fundador).length;
-function calc(svc) {
-  if (!svc) return null;
-  const extras = (svc.extras || []).reduce((a, x) => a + (Q.extras[x.name] || 0) * x.price, 0);
-  const pct = (svc.opciones || []).reduce((a, o) => a + (Q.opc[o.name] ? o.pct : 0), 0);
-  let total = Math.round((svc.price + extras) * (1 + pct / 100));
-  const desc = Q.fundador ? Math.round(total * ((cfg10().fundador?.pct || 10) / 100)) : 0;
-  total -= desc;
-  const anticipo = Math.round(total * ((Number(svc.anticipo) || 0) / 100));
-  return { base: svc.price, extras, pct, desc, total, anticipo, saldo: total - anticipo, monthly: Number(svc.monthly) || 0 };
-}
-function waText(svc, c, client) {
-  const ex = (svc.extras || []).filter((x) => Q.extras[x.name]).map((x) => `• ${Q.extras[x.name]} × ${x.name}: ${fmt.money(x.price * Q.extras[x.name])}`);
-  const op = (svc.opciones || []).filter((o) => Q.opc[o.name]).map((o) => `• ${o.name} (${o.pct > 0 ? '+' : ''}${o.pct} %)`);
-  return [`Hola${client ? ' ' + client.name : ''} 👋 Te comparto la cotización:`, '',
-    `*${svc.name} · Plan ${svc.plan}*${svc.mensual ? ' (mensual)' : ''}`, `Incluye: ${svc.desc || ''}`, `Precio: ${fmt.money(svc.price)}`,
-    ...ex, ...op, c.desc ? `• Precio fundador: −${fmt.money(c.desc)}` : '', '',
-    `*Total: ${fmt.money(c.total)}*${svc.mensual ? ' al mes' : ''}`,
-    c.anticipo ? `Anticipo (${svc.anticipo} %): ${fmt.money(c.anticipo)} · Saldo al entregar: ${fmt.money(c.saldo)}` : 'Pagas al entregar.',
-    c.monthly ? `Mensualidad después: ${fmt.money(c.monthly)}` : '', svc.noIncluye ? `No incluye: ${svc.noIncluye}` : '', '', '— Cristóbal'].filter((l) => l !== '').join('\n');
-}
-const cotizador = { id: 'cotizador', title: 'Cotizador', icon: '🧮',
-  render(el) {
-    const sources = store.list('sources');
-    const svcs = store.list('services');
-    if (!svcs.length) { el.innerHTML = '<div class="empty"><b>Sin servicios todavía</b>Entra con Google: tus servicios y combos del Plan $10M se cargan solos. También puedes crearlos en 🧾 Servicios.</div>'; return; }
-    const tabs = `<div class="tabs"><button data-tab="servicios" aria-pressed="${Q.tab === 'servicios'}">🧾 Servicios</button><button data-tab="combos" aria-pressed="${Q.tab === 'combos'}">🎁 Combos</button></div>`;
-    if (Q.tab === 'combos') { el.innerHTML = tabs + combosView(); return bind(el); }
-    const marcas = sources.filter((s) => svcs.some((v) => v.source === s.id));
-    if (!Q.marca || !marcas.some((m) => m.id === Q.marca)) Q.marca = marcas[0]?.id || '';
-    const names = [...new Set(svcs.filter((v) => !Q.marca || v.source === Q.marca).map((v) => v.name))];
-    if (!names.includes(Q.svc)) { Q.svc = names[0] || ''; Q.plan = ''; Q.extras = {}; Q.opc = {}; }
-    const plans = svcs.filter((v) => v.name === Q.svc && (!Q.marca || v.source === Q.marca)).sort((a, b) => a.price - b.price);
-    if (!plans.some((p) => p.id === Q.plan)) Q.plan = (plans.find((p) => p.plan === 'Premium') || plans[plans.length - 1] || {}).id;
-    const svc = plans.find((p) => p.id === Q.plan);
-    const cheap = plans[0];
-    const minH = cfg10().minimoHora || 35000;
-    const c = calc(svc);
-    const cup = (cfg10().fundador?.cupos || 3) - fundadorUsados();
-    el.innerHTML = tabs + `
-      <div class="chips-row">${marcas.map((m) => `<button class="pill ${m.id === Q.marca ? 'on' : ''}" data-marca="${m.id}" style="--pc:${esc(m.color || 'var(--accent)')}">${esc(m.name)}</button>`).join('')}</div>
-      <div class="chips-row">${names.map((n) => `<button class="pill sm ${n === Q.svc ? 'on' : ''}" data-svc="${esc(n)}">${esc(n)}</button>`).join('')}</div>
-      <div class="plans">${plans.map((p) => {
-        const rinde = cheap && p !== cheap && cheap.hours && p.hours ? Math.round(((p.hours / p.price) / (cheap.hours / cheap.price) - 1) * 100) : 0;
-        const ph = p.hours ? Math.round(p.price / p.hours) : 0;
-        return `<button class="plan ${p.id === Q.plan ? 'on' : ''} ${p.plan === 'Premium' ? 'rec' : ''}" data-plan="${p.id}">
-          ${p.plan === 'Premium' ? '<span class="rec-tag">★ Recomendado</span>' : ''}
-          <b>${esc(p.plan || 'Único')}</b><span class="pp num">${fmt.money(p.price)}${p.mensual ? '<small>/mes</small>' : ''}</span>
-          ${p.monthly ? `<span class="muted num" style="font-size:12px">+ ${fmt.money(p.monthly)}/mes</span>` : ''}
-          ${rinde > 0 ? `<span class="rinde">Tu plata rinde ${rinde} % más</span>` : ''}
-          <span class="num ${ph && ph < minH ? 'down' : 'muted'}" style="font-size:12px">${p.hours || '?'} h · ${ph ? fmt.money(ph) + '/h' : ''}</span></button>`;
-      }).join('')}</div>
-      ${svc ? `<div class="quote">
-        <div class="card"><h3>Qué incluye</h3><p style="margin:0">${esc(svc.desc || '')}</p>${svc.noIncluye ? `<p class="muted" style="margin:8px 0 0;font-size:13px">No incluye: ${esc(svc.noIncluye)}</p>` : ''}
-          ${(svc.extras || []).length ? `<h3 style="margin-top:14px">Extras</h3><div class="list">${svc.extras.map((x) => `<div class="list-item q-it" style="cursor:default"><div class="li-main"><div class="li-title">${esc(x.name)}</div><div class="li-sub num">${fmt.money(x.price)}</div></div><div class="stepper"><button data-ex="${esc(x.name)}" data-d="-1" aria-label="Quitar">−</button><span class="num">${Q.extras[x.name] || 0}</span><button data-ex="${esc(x.name)}" data-d="1" aria-label="Agregar">＋</button></div></div>`).join('')}</div>` : ''}
-          ${(svc.opciones || []).length ? `<h3 style="margin-top:14px">Opciones</h3><div class="row">${svc.opciones.map((o) => `<button class="pill sm ${Q.opc[o.name] ? 'on' : ''}" data-opc="${esc(o.name)}">${esc(o.name)} ${o.pct > 0 ? '+' : ''}${o.pct} %</button>`).join('')}</div>` : ''}</div>
-        <aside class="card qsum">
-          <label class="row" style="gap:10px"><input type="checkbox" id="qf" ${Q.fundador ? 'checked' : ''} ${cup <= 0 && !Q.fundador ? 'disabled' : ''} style="width:22px;height:22px"> Precio fundador −${cfg10().fundador?.pct || 10} % <span class="chip ${cup > 0 ? 's-create' : 's-delete'}">${Math.max(0, cup)} cupos</span></label>
-          <div class="field"><label for="qc">Cliente</label><select id="qc"><option value="">—</option>${store.list('clients').map((cl) => `<option value="${cl.id}" ${cl.id === Q.client ? 'selected' : ''}>${esc(cl.name)}</option>`).join('')}</select></div>
-          <div class="sumrow"><span>Precio</span><b class="num">${fmt.money(c.base)}</b></div>
-          ${c.extras ? `<div class="sumrow"><span>Extras</span><b class="num">${fmt.money(c.extras)}</b></div>` : ''}
-          ${c.pct ? `<div class="sumrow"><span>Opciones</span><b class="num">${c.pct > 0 ? '+' : ''}${c.pct} %</b></div>` : ''}
-          ${c.desc ? `<div class="sumrow"><span>Fundador</span><b class="num up">−${fmt.money(c.desc)}</b></div>` : ''}
-          <div class="tot num">${fmt.money(c.total)}${svc.mensual ? '<small>/mes</small>' : ''}</div>
-          <div class="sumrow"><span>Anticipo (${esc(svc.anticipoTxt || (svc.anticipo || 0) + ' %')})</span><b class="num">${fmt.money(c.anticipo)}</b></div>
-          <div class="sumrow"><span>Saldo</span><b class="num">${fmt.money(c.saldo)}</b></div>
-          ${c.monthly ? `<div class="sumrow"><span>Mensualidad</span><b class="num">${fmt.money(c.monthly)}</b></div>` : ''}
-          <div class="row"><button class="btn btn-edit" data-a="wa">📋 Copiar para WhatsApp</button><button class="btn btn-create" data-a="save">＋ Guardar como trabajo</button></div>
-        </aside></div>` : ''}`;
-    bind(el);
-  } };
-function combosView() {
-  const cfg = cfg10(); const today = fmt.today();
-  const sem = (cfg.combosSemana || []).find((c) => today >= c.desde && today <= c.hasta);
-  const inSem = (n) => sem && (sem.nexopc === n || sem.agencia === n);
-  const cupos = (n) => 3 - store.list('jobs').filter((j) => j.combo === n && j.createdAt >= (sem?.desde || '')).length;
-  return `${sem ? `<div class="card" style="border-color:var(--accent)"><b>🔥 Combos de la semana</b> <span class="muted">(${fmt.date(sem.desde)} – ${fmt.date(sem.hasta)})</span><div class="muted">${esc(sem.nexopc)} · ${esc(sem.agencia)} — 3 cupos cada uno</div></div>` : ''}
-    <div class="grid section">${store.list('combos').map((cb) => { const ah = cb.separate ? Math.round((1 - cb.price / cb.separate) * 100) : 0; const src = store.get('sources', cb.source);
-      return `<div class="card combo ${inSem(cb.name) ? 'hot' : ''}"><div class="row" style="justify-content:space-between"><span class="chip" style="color:${esc(src?.color || 'var(--accent)')}">${esc(src?.name || '')}</span>${inSem(cb.name) ? `<span class="chip s-pending">${Math.max(0, cupos(cb.name))} cupos</span>` : ''}</div>
-        <b style="font:700 17px var(--display)">${esc(cb.name)}</b><span class="muted" style="font-size:13px">${esc(cb.para || '')} · ${esc(cb.items || '')}</span>
-        <div class="row" style="align-items:baseline">${cb.separate ? `<s class="muted num">${fmt.money(cb.separate)}</s>` : ''}<b class="num" style="font-size:22px">${fmt.money(cb.price)}</b>${ah ? `<span class="chip s-create">−${ah} %</span>` : ''}</div>
-        <div class="row"><button class="btn btn-edit ghost sm" data-cwa="${cb.id}">📋 WhatsApp</button><button class="btn btn-create ghost sm" data-csave="${cb.id}">＋ Trabajo</button></div></div>`; }).join('') || '<div class="empty"><b>Sin combos</b>Créalos en 🎁 Combos.</div>'}</div>`;
-}
-async function copyTxt(t) { try { await navigator.clipboard.writeText(t); toast('Copiado: pégalo en WhatsApp'); } catch { toast('No se pudo copiar'); } }
-function bind(el) {
-  el.onclick = (e) => {
-    const g = (sel) => e.target.closest(sel);
-    if (g('[data-tab]')) { Q.tab = g('[data-tab]').dataset.tab; return cotizador.render(el); }
-    if (g('[data-marca]')) { Q.marca = g('[data-marca]').dataset.marca; Q.svc = ''; return cotizador.render(el); }
-    if (g('[data-svc]')) { Q.svc = g('[data-svc]').dataset.svc; Q.plan = ''; Q.extras = {}; Q.opc = {}; return cotizador.render(el); }
-    if (g('[data-plan]')) { Q.plan = g('[data-plan]').dataset.plan; return cotizador.render(el); }
-    if (g('[data-ex]')) { const b = g('[data-ex]'); Q.extras[b.dataset.ex] = Math.max(0, (Q.extras[b.dataset.ex] || 0) + Number(b.dataset.d)); navigator.vibrate?.(8); return cotizador.render(el); }
-    if (g('[data-opc]')) { const n = g('[data-opc]').dataset.opc; Q.opc[n] = !Q.opc[n]; return cotizador.render(el); }
-    const svc = store.get('services', Q.plan); const client = store.get('clients', Q.client);
-    if (g('[data-a=wa]') && svc) { copyTxt(waText(svc, calc(svc), client)); bumpReg('cotizaciones'); return; }
-    if (g('[data-a=save]') && svc) {
-      const c = calc(svc);
-      store.add('jobs', { title: `${svc.name} · ${svc.plan}`, client: Q.client, source: svc.source, service: svc.id, price: c.total, status: 'cotizado', fundador: Q.fundador, anticipo: c.anticipo });
-      bumpReg('cotizaciones'); toast('Trabajo cotizado creado · +1 cotización hoy'); Q.fundador = false; return;
+export function fichaProspecto(pid) {
+  const p = store.get('prospects', pid); if (!p) return;
+  const body = h(`<div class="form">
+    <div class="row" style="gap:6px"><span class="chip">${{ caliente: '🔥 Caliente', tibio: '🌤 Tibio', frio: '❄️ Frío' }[p.temp || 'tibio']}</span>${p.origin ? `<span class="chip">vía ${esc(p.origin)}</span>` : ''}${p.potential ? `<span class="chip s-create">${money(p.potential)} posibles</span>` : ''}</div>
+    ${p.interest ? `<p style="margin:0">💡 Le interesa: <b>${esc(p.interest)}</b></p>` : ''}
+    <p style="margin:0">➡️ ${esc(p.next || 'Sin próximo paso')}${p.nextDate ? ' · ' + fmt.date(p.nextDate) : ''}</p>
+    <div class="acts"><button data-a="wa"><i>💬</i>WhatsApp</button><button data-a="cot"><i>🧮</i>Cotizar</button><button data-a="cont"><i>✓</i>Contacté</button><button data-a="edit"><i>✎</i>Editar</button></div>
+    <div class="row"><button class="btn btn-create" data-a="win" style="flex:1">✅ Ganado: pasar a clientes</button><button class="btn btn-delete ghost" data-a="lose">✕ Perdido</button></div></div>`);
+  const s = sheet('🎯 ' + p.name, body);
+  body.addEventListener('click', async (e) => {
+    const a = e.target.closest('[data-a]')?.dataset.a;
+    if (a === 'wa') { window.open(waLink(p.contact, `Hola ${p.name} 👋 Soy ${cobro().nombre || 'Cristóbal'}. ¿Tienes 5 minutos para mostrarte cómo puedo ayudarte con ${p.interest || 'tu negocio'}?`), '_blank', 'noopener'); store.update('prospects', p.id, { lastAt: fmt.today() }); bumpReg('seguimientos'); }
+    if (a === 'cot') { s.close(); resetQ({ prospect: p.id }); setTimeout(() => document.querySelector('[data-nav=cotizar]')?.click(), 280); }
+    if (a === 'cont') {
+      const f = h(`<form class="form"><div class="field"><label for="pn">Próximo paso</label><input id="pn" value="${esc(p.next || '')}" placeholder="Mostrarle ejemplos el jueves"></div><div class="picks">${[['1', 'Mañana'], ['2', 'En 2 días'], ['7', 'En una semana']].map(([d, l]) => `<button type="button" class="pick" data-d="${d}">${l}</button>`).join('')}</div><div class="field"><label for="pd">Fecha</label><input id="pd" type="date" value="${esc(p.nextDate && p.nextDate > fmt.today() ? p.nextDate : '')}"></div><div class="row end"><button class="btn btn-create">✓ Guardar</button></div></form>`);
+      const s2 = sheet('✓ Contacté a ' + p.name, f);
+      f.onclick = (ev) => { const b = ev.target.closest('[data-d]'); if (!b) return; const d = new Date(); d.setDate(d.getDate() + Number(b.dataset.d)); f.querySelector('#pd').value = d.toISOString().slice(0, 10); };
+      f.addEventListener('submit', (ev) => { ev.preventDefault(); store.update('prospects', p.id, { lastAt: fmt.today(), next: f.querySelector('#pn').value.trim(), nextDate: f.querySelector('#pd').value }); bumpReg('seguimientos'); toast('✓ Anotado'); s2.close(); s.close(); });
     }
-    const cw = g('[data-cwa]'); if (cw) { const cb = store.get('combos', cw.dataset.cwa); copyTxt(`Hola 👋 Te comparto el *${cb.name}*:\n${cb.items}\n${cb.separate ? 'Por separado: ' + fmt.money(cb.separate) + '\n' : ''}*Precio combo: ${fmt.money(cb.price)}*\n\n— Cristóbal`); bumpReg('cotizaciones'); return; }
-    const cs = g('[data-csave]'); if (cs) { const cb = store.get('combos', cs.dataset.csave); store.add('jobs', { title: cb.name, source: cb.source, price: cb.price, status: 'cotizado', combo: cb.name }); bumpReg('cotizaciones'); toast('Trabajo cotizado creado'); }
-  };
-  el.onchange = (e) => {
-    if (e.target.id === 'qf') { Q.fundador = e.target.checked; cotizador.render(el); }
-    if (e.target.id === 'qc') Q.client = e.target.value;
-  };
+    if (a === 'edit') { s.close(); setTimeout(() => openForm(prospMod, p), 280); }
+    if (a === 'win') { const c = store.add('clients', { name: p.name, contact: p.contact || '', negocio: p.interest ? '' : '', fromProspect: p.id, note: [p.interest && 'Le interesa: ' + p.interest, p.origin && 'Vía: ' + p.origin].filter(Boolean).join(' · ') }); store.update('prospects', p.id, { stage: 'ganado', client: c.id }); for (const q of store.list('cotizaciones').filter((x) => x.prospect === p.id)) store.update('cotizaciones', q.id, { client: c.id }); toast('✅ ¡Nuevo cliente!'); s.close(); setTimeout(() => fichaCliente(c.id), 300); }
+    if (a === 'lose' && await confirmSheet('¿Perdido?', `${p.name} sale de tu lista de prospectos.`, { yes: 'Perdido', danger: true })) { store.update('prospects', p.id, { stage: 'perdido' }); s.close(); }
+  });
 }
 
-// ---------- Registro diario (números del día) ----------
-const NUMS = [['contactos', 'Contactos nuevos', '📞'], ['seguimientos', 'Seguimientos', '🔁'], ['cotizaciones', 'Cotizaciones', '🧮'], ['videos', 'Videos publicados', '🎬'], ['horasProd', 'Horas de producción', '⏱'], ['ventas', 'Ventas', '✅']];
-const registro = fromSchema('registroDiario', { id: 'registro', title: 'Registro diario', icon: '📒', single: 'registro del día',
-  preset: () => ({ date: fmt.today() }),
-  render(el) {
-    const meta = cfg10().numeros || { contactos: 8, seguimientos: 5, cotizaciones: 2, videos: 1, horasProd: 4 };
-    const r = todayReg() || {};
-    const hist = store.list('registroDiario').filter((x) => x.date !== fmt.today()).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 14);
-    el.innerHTML = `<p class="muted" style="margin:0 0 10px">Se llena cada noche (8:00 p. m.). Toca ＋ a medida que avanzas en el día.</p>
-      <div class="nums">${NUMS.map(([k, l, i]) => { const v = Number(r[k]) || 0; const m = meta[k]; const ok = m ? v >= m : v > 0;
-        return `<div class="num-card ${ok ? 'ok' : ''}"><span class="ic">${i}</span><div class="li-main"><b>${l}</b><span class="muted num">${m ? 'meta ' + m : 'meta 1 cada 1,3 días'}</span></div>
-          <div class="stepper"><button data-k="${k}" data-d="${k === 'horasProd' ? -0.5 : -1}" aria-label="Menos">−</button><span class="num">${v}</span><button data-k="${k}" data-d="${k === 'horasProd' ? 0.5 : 1}" aria-label="Más">＋</button></div></div>`; }).join('')}</div>
-      <div class="row section"><button class="btn btn-create" data-a="cobro">💵 Plata cobrada hoy: ${fmt.money(r.cobrado || 0)}</button><button class="btn btn-edit ghost" data-a="notas">✍️ Qué funcionó y lo #1 de mañana</button></div>
-      <div class="section"><h2>Días anteriores</h2><div class="list">${hist.map((x) => { const hit = NUMS.filter(([k]) => meta[k] && (Number(x[k]) || 0) >= meta[k]).length; const tot = NUMS.filter(([k]) => meta[k]).length;
-        return `<div class="list-item" data-id="${x.id}"><span class="chip ${hit === tot ? 's-create' : hit >= tot / 2 ? 's-pending' : 's-delete'}">${hit}/${tot}</span><div class="li-main"><div class="li-title">${fmt.date(x.date)}</div><div class="li-sub">${x.contactos || 0} contactos · ${x.cotizaciones || 0} cotizaciones · ${x.ventas || 0} ventas${x.top1 ? ' · #1: ' + esc(x.top1) : ''}</div></div><div class="li-side up">${x.cobrado ? fmt.money(x.cobrado) : ''}</div></div>`; }).join('') || '<p class="muted">Todavía no hay días anteriores.</p>'}</div></div>`;
+// ---------- 📒 Mi día ----------
+const midia = { id: 'midia', title: 'Mi día', icon: '📒',
+  render(el, api) {
+    const r = regHoy(); const nm = (store.get('config', 'plan10m') || {}).numeros || {};
+    const cot = store.list('cotizaciones').filter((q) => (q.sentAt || '').slice(0, 10) === fmt.today()).length;
+    const ventas = store.list('cotizaciones').filter((q) => q.approvedAt === fmt.today()).length;
+    const cobrado = store.list('abonos').filter((a) => a.date === fmt.today()).reduce((x, a) => x + (Number(a.amount) || 0), 0);
+    const mins = store.list('timeLogs').filter((t) => t.date === fmt.today() && (t.kind || 'trabajo') === 'trabajo').reduce((x, t) => x + (Number(t.minutes) || 0), 0);
+    const step = (k, l, i) => { const v = Number(r[k]) || 0; const m = Number(nm[k]) || 0; return `<div class="num-card ${m && v >= m ? 'ok' : ''}"><span class="ic">${i}</span><span class="li-main"><b>${l}</b><small class="muted">${m ? 'meta ' + m : ''}</small></span><div class="stp"><button data-k="${k}" data-d="-1" aria-label="Menos">−</button><b class="num">${v}</b><button data-k="${k}" data-d="1" aria-label="Más">＋</button></div></div>`; };
+    el.innerHTML = misionesHtml(false) + `<div class="section"><h2>Registro de hoy</h2>
+      ${step('contactos', 'Contactos nuevos', '📞')}${step('seguimientos', 'Seguimientos', '🔁')}
+      <div class="card auto"><div><b class="num">${cot}</b><small>cotizaciones</small></div><div><b class="num">${ventas}</b><small>ventas</small></div><div><b class="num up">${money(cobrado)}</b><small>cobrado</small></div><div><b class="num">${fmt.hours(mins)}</b><small>trabajadas</small></div></div>
+      <p class="muted" style="font-size:12px;margin:4px 0 10px">Cotizaciones, ventas, cobros y horas se llenan solos desde la app.</p>
+      <div class="field"><label for="ap">Qué funcionó / qué no (una línea)</label><input id="ap" value="${esc(r.aprendizaje || '')}" placeholder="Las barberías responden más por la tarde"></div></div>`;
+    let t = 0;
+    el.oninput = (e) => { if (e.target.id !== 'ap') return; clearTimeout(t); const v = e.target.value; t = setTimeout(() => { const x = regHoy(); x.id ? store.update('registroDiario', x.id, { aprendizaje: v }) : store.add('registroDiario', { date: fmt.today(), aprendizaje: v }); }, 600); };
     el.onclick = (e) => {
-      const b = e.target.closest('[data-k]'); if (b) { bumpReg(b.dataset.k, Number(b.dataset.d)); navigator.vibrate?.(8); return; }
-      const a = e.target.closest('[data-a]')?.dataset.a;
-      if (a === 'cobro' || a === 'notas') { const cur = todayReg() || store.add('registroDiario', { date: fmt.today() }); return openForm(registro, store.get('registroDiario', cur.id)); }
-      const it = e.target.closest('.list-item'); if (it) openForm(registro, store.get('registroDiario', it.dataset.id));
+      if (misionesClick(e, api)) return;
+      const b = e.target.closest('[data-k]'); if (b) { bumpReg(b.dataset.k, Number(b.dataset.d)); navigator.vibrate?.(8); }
     };
-  } });
+    el.querySelector('[data-misnew]')?.addEventListener('submit', (e) => { e.preventDefault(); const v = e.target.q.value.trim(); if (!v) return; crearPropia(v); toast('⭐ Misión agregada'); });
+  } };
 
-// ---------- Cronómetro (el mismo en todas las apps) y valor real de tu hora ----------
-const cronometro = { id: 'cronometro', title: 'Cronómetro', icon: '⏱',
+// ---------- 💵 Cobros ----------
+const cobros = { id: 'cobros', title: 'Cobros', icon: '💵',
   render(el) {
-    const t = timer.state();
-    const jobs = store.list('jobs').filter((j) => j.status !== 'pagado');
-    const rows = store.list('jobs').map((j) => { const m = minutesOf(j.id); const paid = paidOf((i) => i.job === j.id) || (j.status === 'pagado' ? +j.price || 0 : 0); return { j, m, v: m ? Math.round((paid || +j.price || 0) / (m / 60)) : 0 }; }).filter((r) => r.m);
-    const logs = store.list('timeLogs').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6);
-    el.innerHTML = `<div class="card timer">${t ? `<div style="flex:1;min-width:0"><b>${esc(t.label)}</b><div class="muted" style="font-size:13px">${t.paused ? 'En pausa' : 'Corriendo'} · se ve arriba en todas tus apps</div></div>
-        <div class="tclock num" id="clk">${clock(timer.elapsed(t))}</div>
-        <div class="row">${t.paused ? '<button class="btn btn-pending" data-a="resume">▶ Seguir</button>' : '<button class="btn btn-pending" data-a="pause">⏸</button>'}<button class="btn btn-delete" data-a="stop">■ Terminar</button></div>`
-      : `<div style="min-width:0;flex:1"><div class="field"><label for="tj">¿En qué trabajas?</label><select id="tj"><option value="">— Otra cosa (escribe abajo) —</option>${jobs.map((j) => `<option value="${j.id}">${esc(j.title)}</option>`).join('')}</select></div>
-        <input id="tl" placeholder="Ej: buscar clientes en la calle" style="width:100%;min-height:42px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg)"></div>
-        <button class="btn btn-create" data-a="go">▶ Empezar</button>`}</div>
-      <div class="grid k section"><div class="card kpi"><div class="v num">${fmt.money(hourValue())}</div><div class="l">valor real de tu hora (cobrado ÷ horas)</div></div>
-        <div class="card kpi"><div class="v num">${fmt.hours(store.list('timeLogs').filter((x) => (x.kind || 'trabajo') === 'trabajo').reduce((a, x) => a + (+x.minutes || 0), 0))}</div><div class="l">horas de trabajo registradas</div></div></div>
-      <div class="section"><h2>Últimos tiempos</h2><div class="list">${logs.map((x) => `<div class="list-item" style="cursor:default"><div class="li-main"><div class="li-title">${esc(x.label || name('jobs', x.job) || 'Trabajo')}</div><div class="li-sub">${fmt.date(x.date)}${x.job ? ' · ' + esc(name('jobs', x.job)) : ''}</div></div><div class="li-side num">${fmt.hours(x.minutes)}</div></div>`).join('') || '<div class="empty"><b>Sin tiempos todavía</b>Usa el cronómetro al trabajar: descubrirás qué servicio te paga mejor la hora.</div>'}</div></div>
-      <div class="section"><h2>Por trabajo</h2><div class="list">${rows.sort((a, b) => a.v - b.v).map((r) => `<div class="list-item" style="cursor:default"><div class="li-main"><div class="li-title">${esc(r.j.title)}</div><div class="li-sub">${fmt.hours(r.m)} · ${fmt.money(r.j.price)}</div></div><div class="li-side ${r.v < minHora() ? 'down' : 'up'}">${fmt.money(r.v)}/h</div></div>`).join('') || '<p class="muted">Cuando midas trabajos aquí verás cuánto te paga cada hora.</p>'}</div></div>`;
-    const tick = () => { const c = el.querySelector('#clk'); const st = timer.state(); if (!st?.running || !c?.isConnected) return; c.textContent = clock(timer.elapsed(st)); setTimeout(tick, 1000); };
-    tick();
-    el.onclick = (e) => {
-      const a = e.target.closest('[data-a]')?.dataset.a;
-      if (a === 'go') { const jid = el.querySelector('#tj').value; const j = store.get('jobs', jid); timer.start({ label: j?.title || el.querySelector('#tl').value.trim() || 'Trabajo', kind: 'trabajo', job: jid, source: j?.source || '' }); toast('▶ En marcha: lo ves arriba en todas las apps'); }
-      if (a === 'pause') timer.pause();
-      if (a === 'resume') timer.resume();
-      if (a === 'stop') { const l = timer.stop(); if (l) toast(`Guardado ${fmt.hours(l.minutes)}`); }
+    const js = trabajosActivos().filter((j) => saldoTrabajo(j) > 0).sort((a, b) => (b.status === 'entregado') - (a.status === 'entregado'));
+    const ab = store.list('abonos').filter((a) => (a.date || '').startsWith(fmt.today().slice(0, 7))).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const inv = store.list('invoices').filter((i) => !i.paid);
+    el.innerHTML = `<div class="card psum"><div><b class="num">${money(porCobrar())}</b><small>por cobrar</small></div><div><b class="num up">${money(cobradoMes())}</b><small>cobrado este mes</small></div></div>
+      <div class="section"><h2>Te deben</h2>${js.map((j) => { const sd = saldoTrabajo(j); return `<div class="card qcard"><div class="row" style="justify-content:space-between"><b>${esc(store.get('clients', j.client)?.name || '')} · ${esc(j.title)}</b><span class="chip ${j.status === 'entregado' ? 's-delete' : ''}">${esc(j.status)}</span></div>
+        <div class="bar" style="margin:6px 0"><i style="width:${(j.price - sd) / j.price * 100}%;background:var(--c-create)"></i></div><div class="row" style="justify-content:space-between"><span class="muted num" style="font-size:12.5px">falta <b style="color:var(--fg)">${money(sd)}</b> de ${money(j.price)}</span><button class="btn btn-create sm" data-ab="${j.id}">💵 Registrar pago</button></div></div>`; }).join('') || '<p class="muted">Nadie te debe ✓</p>'}</div>
+      ${inv.length ? `<div class="section"><h2>Cobros de antes</h2>${inv.map((i) => `<div class="list-item"><div class="li-main"><div class="li-title">${esc(i.number || 'Cobro')} · ${esc(store.get('clients', i.client)?.name || '')}</div></div><b class="num">${money(i.amount)}</b><button class="btn btn-create sm" data-inv="${i.id}">Pagó</button></div>`).join('')}</div>` : ''}
+      <div class="section"><h2>Pagos de este mes</h2>${ab.map((a) => `<div class="list-item"><div class="li-main"><div class="li-title">${esc(store.get('clients', store.get('jobs', a.job)?.client)?.name || '')} · ${esc({ anticipo: 'Anticipo', saldo: 'Saldo', abono: 'Abono' }[a.kind] || 'Abono')}</div><div class="li-sub">${fmt.date(a.date)} · ${esc(store.get('jobs', a.job)?.title || '')}</div></div><b class="num up">${money(a.amount)}</b><button class="btn btn-delete ghost sm" data-del="${a.id}" aria-label="Borrar">✕</button></div>`).join('') || '<p class="muted">Sin pagos este mes.</p>'}</div>`;
+    el.onclick = async (e) => {
+      const b = e.target.closest('[data-ab]'); if (b) return abonoSheet(b.dataset.ab);
+      const i = e.target.closest('[data-inv]'); if (i) { store.update('invoices', i.dataset.inv, { paid: true }); toast('✓ Pagado · entró a Finanzas'); return; }
+      const d = e.target.closest('[data-del]'); if (d && await confirmSheet('¿Borrar pago?', 'También se quita de Finanzas.', { yes: 'Borrar', danger: true })) store.remove('abonos', d.dataset.del);
     };
   } };
 
-// ---------- Cobros y cuentas de cobro ----------
-const cobros = fromSchema('invoices', { id: 'cobros', title: 'Cobros', icon: '🧾', single: 'cuenta de cobro', checkField: 'paid',
-  preset: () => ({ number: 'CC-' + String(store.list('invoices').length + 1).padStart(3, '0') }),
-  sort: (a, b) => (a.paid - b.paid) || (a.due || '9').localeCompare(b.due || '9'),
-  titleOf: (r) => `${r.number || 'Cobro'} · ${name('clients', r.client) || 'sin cliente'}`,
-  subOf: (r) => `${esc(name('jobs', r.job))}${r.due ? ` · vence ${fmt.date(r.due)}` : ''}${r.paid ? ' · ✅ entró a Finanzas' : ''}`,
-  sideOf: (r) => `<span class="num ${r.paid ? 'up' : r.due && r.due < fmt.today() ? 'down' : ''}">${fmt.money(r.amount)}</span>`,
-  render(el, api) {
-    const pend = store.list('invoices').filter((i) => !i.paid);
-    el.innerHTML = `<div class="grid k" style="margin-bottom:12px"><div class="card kpi"><div class="v num">${fmt.money(pend.reduce((a, i) => a + (+i.amount || 0), 0))}</div><div class="l">por cobrar (${pend.length})</div></div>
-      <div class="card kpi"><div class="v num up">${fmt.money(paidOf((i) => (i.date || '').startsWith(fmt.today().slice(0, 7))))}</div><div class="l">cobrado este mes</div></div></div>
-      <p class="muted" style="font-size:13px;margin:0 0 10px">Marca ✓ cuando te paguen: el ingreso se crea solo en NEXO Finanzas.</p><div id="il"></div>`;
-    api.renderList(el.querySelector('#il'), { ...cobros, render: null });
-    el.querySelector('#il').addEventListener('contextmenu', (e) => { const it = e.target.closest('.list-item'); if (!it) return; e.preventDefault(); copyInvoice(store.get('invoices', it.dataset.id)); });
-  },
-  headerExtra: () => '<span class="muted" style="font-size:12px">Mantén presionado un cobro para copiar el texto</span>' });
-function copyInvoice(i) {
-  const c = store.get('clients', i.client); const j = store.get('jobs', i.job);
-  copy(`CUENTA DE COBRO ${i.number || ''}\nFecha: ${i.date}\nCliente: ${c?.name || ''}\nConcepto: ${j?.title || ''}\nValor: ${fmt.money(i.amount)}\n${i.due ? 'Vence: ' + i.due + '\n' : ''}\nCristóbal — NEXO`);
-}
+// ---------- 🛠 Trabajos ----------
+const ST = [['aprobado', '✅ Aprobado'], ['en curso', '▶ En curso'], ['entregado', '📦 Entregado'], ['pagado', '💵 Pagado']];
+const trabajos = { id: 'trabajos', title: 'Trabajos', icon: '🛠', onAdd: () => openForm(jobMod, null, { status: 'aprobado', anticipo: 50 }),
+  render(el) {
+    const js = store.list('jobs').filter((j) => j.status !== 'cotizado');
+    el.innerHTML = ST.map(([k, l]) => { const L = js.filter((j) => j.status === k).sort((a, b) => (a.due || '9').localeCompare(b.due || '9')); if (!L.length) return ''; return `<div class="section"><h2>${l} · ${L.length}</h2>${L.slice(0, k === 'pagado' ? 6 : 99).map((j) => `<div class="list-item" data-j="${j.id}"><div class="li-main"><div class="li-title">${esc(j.title)}</div><div class="li-sub">${esc(store.get('clients', j.client)?.name || '')}${j.due ? ' · entrega ' + fmt.date(j.due) : ''}</div></div><b class="num">${money(j.price)}</b>${k === 'aprobado' ? `<button class="btn btn-edit ghost sm" data-st="${j.id}|en curso">▶</button>` : k === 'en curso' ? `<button class="btn btn-edit ghost sm" data-st="${j.id}|entregado">📦</button>` : ''}</div>`).join('')}</div>`; }).join('') || '<div class="empty"><b>Sin trabajos</b>Cuando un cliente apruebe una cotización, el trabajo aparece aquí solo.</div>';
+    el.onclick = (e) => {
+      const b = e.target.closest('[data-st]'); if (b) { e.stopPropagation(); const [id, st] = b.dataset.st.split('|'); store.update('jobs', id, { status: st, ...(st === 'entregado' ? { deliveredAt: fmt.today() } : {}) }); return; }
+      const j = e.target.closest('[data-j]'); if (j) { const job = store.get('jobs', j.dataset.j); job.client ? fichaCliente(job.client) : openForm(jobMod, job); }
+    };
+  } };
 
-// ---------- Prospectos ----------
-let stage = 'activos';
-const prospectos = fromSchema('prospects', { id: 'prospectos', title: 'Prospectos', icon: '🎯', single: 'prospecto',
-  filter: (r) => (stage === 'activos' ? !['ganado', 'perdido'].includes(r.stage) : r.stage === stage),
-  sort: (a, b) => (a.nextDate || '9').localeCompare(b.nextDate || '9'),
-  titleOf: (r) => r.name, subOf: (r) => `${esc(r.next || '')}${r.nextDate ? ' · ' + fmt.date(r.nextDate) : ''}`,
-  sideOf: (r) => `<span class="chip ${r.stage === 'ganado' ? 's-create' : r.stage === 'perdido' ? 's-delete' : r.nextDate && r.nextDate <= fmt.today() ? 's-pending' : ''}">${esc(STAGES.find((s) => s[0] === r.stage)?.[1] || 'Nuevo')}</span>`,
-  render(el, api) {
-    const all = store.list('prospects');
-    el.innerHTML = `<div class="funnel">${STAGES.slice(0, 5).map(([k, l]) => `<div><b class="num">${all.filter((p) => (p.stage || 'nuevo') === k).length}</b><span>${l}</span></div>`).join('')}</div>
-      <div class="tabs">${[['activos', 'Activos'], ['ganado', 'Ganados'], ['perdido', 'Perdidos']].map(([k, l]) => `<button data-t="${k}" aria-pressed="${stage === k}">${l}</button>`).join('')}</div><div id="pl"></div>
-      <div class="row section"><button class="btn btn-ai" data-a="h">🟣 Harvey: mensaje para conseguir clientes</button></div>`;
-    api.renderList(el.querySelector('#pl'), { ...prospectos, render: null });
-    el.querySelector('.tabs').onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) { stage = b.dataset.t; api.paint(); } };
-    el.querySelector('[data-a=h]').onclick = () => openHarvey('Harvey: con mis prospectos activos y mi portafolio, escríbeme un mensaje corto de WhatsApp para el prospecto más caliente y dime qué ofrecerle.');
-  } });
+// ---------- ⏱ Cronómetro ----------
+const crono = { id: 'cronometro', title: 'Cronómetro', icon: '⏱',
+  render(el) {
+    const t = timer.state(); const js = store.list('jobs').filter((j) => ['aprobado', 'en curso'].includes(j.status));
+    const logs = store.list('timeLogs').sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 8);
+    el.innerHTML = `<div class="card tcard">${t ? `<b>${esc(t.label)}</b><div class="num tbig" id="clk">${clock(timer.elapsed(t))}</div><div class="row">${t.paused ? '<button class="btn btn-pending" data-a="resume">▶ Seguir</button>' : '<button class="btn btn-pending" data-a="pause">⏸ Pausa</button>'}<button class="btn btn-delete" data-a="stop">■ Terminar</button></div>`
+      : `<div class="field"><label>¿En qué trabajas?</label><div class="picks">${js.map((j) => `<button class="pick" data-job="${j.id}">🛠 ${esc(j.title)}</button>`).join('')}</div></div><form class="nq" data-libre><input name="q" placeholder="…o algo libre: buscar clientes en la calle" autocomplete="off"><button class="btn btn-create sm">▶</button></form>`}</div>
+      <div class="section"><h2>Últimos tiempos</h2>${logs.map((l) => `<div class="list-item"><div class="li-main"><div class="li-title">${esc(l.label || store.get('jobs', l.job)?.title || 'Trabajo')}</div><div class="li-sub">${fmt.date(l.date)}</div></div><b class="num">${fmt.hours(l.minutes)}</b></div>`).join('') || '<p class="muted">Mide tus horas: así sabes cuánto te paga de verdad cada trabajo.</p>'}</div>`;
+    const tick = () => { const c = el.querySelector('#clk'); const st = timer.state(); if (!st?.running || !c?.isConnected) return; c.textContent = clock(timer.elapsed(st)); setTimeout(tick, 1000); }; tick();
+    el.onclick = (e) => {
+      const j = e.target.closest('[data-job]'); if (j) { const job = store.get('jobs', j.dataset.job); timer.start({ label: job.title, kind: 'trabajo', job: job.id, source: job.source }); if (job.status === 'aprobado') store.update('jobs', job.id, { status: 'en curso' }); return; }
+      const a = e.target.closest('[data-a]')?.dataset.a; if (a === 'pause') timer.pause(); if (a === 'resume') timer.resume(); if (a === 'stop') { const l = timer.stop(); if (l) toast('Guardado ' + fmt.hours(l.minutes)); }
+    };
+    el.querySelector('[data-libre]')?.addEventListener('submit', (e) => { e.preventDefault(); const v = e.target.q.value.trim(); if (!v) return; timer.start({ label: v, kind: 'trabajo' }); });
+  } };
 
-// ---------- Panel ----------
-function home(el) {
-  const m = fmt.today().slice(0, 7);
-  const cobrado = paidOf((i) => (i.date || '').startsWith(m));
-  const porCobrar = store.list('invoices').filter((i) => !i.paid).reduce((a, i) => a + (+i.amount || 0), 0);
-  const activos = store.list('jobs').filter((j) => !['pagado'].includes(j.status || 'cotizado'));
-  const soon = activos.filter((j) => j.due).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 4);
-  const follow = store.list('prospects').filter((p) => p.nextDate && p.nextDate <= fmt.today() && !['ganado', 'perdido'].includes(p.stage));
-  const bySource = store.list('sources').map((s) => ({ s, v: paidOf((i) => store.get('jobs', i.job)?.source === s.id && (i.date || '').startsWith(m)) }));
-  const maxS = Math.max(1, ...bySource.map((x) => x.v));
-  const e10 = estado(); const reg = store.list('registroDiario').find((r) => r.date === fmt.today()) || {}; const nm = (store.get('config', 'plan10m') || {}).numeros || {};
-  el.innerHTML = `<div class="page-title"><h1>Tus números</h1><button class="btn btn-create sm" data-go="cotizador">🧮 Cotizar</button></div>
-    ${e10 ? `<div class="card p10" style="margin-bottom:12px"><div class="sema" style="--sc:${SEMA[e10.color]}"><span class="luz"></span><div><b>${fmt.money(e10.acc)}</b> de ${fmt.money(e10.p.meta)} · ${esc(e10.msg)}</div></div>
-      <div class="row" style="gap:14px;font-size:14px">${[['contactos', '📞'], ['seguimientos', '🔁'], ['cotizaciones', '🧮'], ['videos', '🎬']].map(([k, i]) => `<span class="num ${(Number(reg[k]) || 0) >= (nm[k] || 1) ? 'up' : ''}">${i} ${reg[k] || 0}/${nm[k] || '-'}</span>`).join('')}
-      <button class="btn btn-edit ghost sm" data-go="registro">📒 Registro de hoy</button></div>
-      ${e10.combo ? `<div class="muted" style="font-size:13px">🔥 Combos de la semana: <b style="color:var(--fg)">${esc(e10.combo.nexopc)}</b> y <b style="color:var(--fg)">${esc(e10.combo.agencia)}</b></div>` : ''}</div>` : ''}
-    <div class="grid k"><div class="card kpi"><div class="v num up">${fmt.money(cobrado)}</div><div class="l">cobrado este mes</div></div>
-      <div class="card kpi"><div class="v num">${fmt.money(porCobrar)}</div><div class="l">por cobrar</div></div>
-      <div class="card kpi"><div class="v num">${activos.length}</div><div class="l">trabajos activos</div></div>
-      <div class="card kpi"><div class="v num">${fmt.money(hourValue())}</div><div class="l">valor de tu hora</div></div></div>
-    <div class="grid section">
-      <div class="card"><h3>📦 Entregas próximas</h3>${soon.map((j) => `<div class="row" style="justify-content:space-between;padding:4px 0"><span>${esc(j.title)}</span><span class="chip ${j.due < fmt.today() ? 's-delete' : ''}">${fmt.date(j.due)}</span></div>`).join('') || '<p class="muted" style="margin:0">Nada pendiente</p>'}</div>
-      <div class="card"><h3>🎯 Hacer seguimiento hoy</h3>${follow.map((p) => `<div style="padding:4px 0"><b>${esc(p.name)}</b> <span class="muted">· ${esc(p.next || '')}</span></div>`).join('') || '<p class="muted" style="margin:0">Sin seguimientos para hoy</p>'}</div>
-      <div class="card"><h3>💼 Ingresos por fuente (mes)</h3>${bySource.map((x) => `<div class="hbar"><span>${esc(x.s.name)}</span><div class="bar"><i style="width:${(x.v / maxS) * 100}%;background:${esc(x.s.color || 'var(--accent)')}"></i></div><span class="num">${fmt.money(x.v)}</span></div>`).join('') || '<p class="muted" style="margin:0">Crea tus fuentes en 🧭 Fuentes</p>'}</div>
-    </div>`;
-  el.onclick = (e) => { const g = e.target.closest('[data-go]'); if (g) document.querySelector(`[data-nav="${g.dataset.go}"]`)?.click(); };
-}
+// ---------- 🔒 Mis datos de cobro (para el PDF y los mensajes; solo en tu cuenta) ----------
+const datos = { id: 'datos', title: 'Mis datos de cobro', icon: '🔒',
+  render(el) {
+    const c = store.get('config', 'cobro') || {};
+    const F = [['nombre', 'Tu nombre o nombre comercial'], ['telefono', 'WhatsApp'], ['correo', 'Correo'], ['instagram', 'Instagram'], ['nequi', 'Nequi (número)'], ['daviplata', 'Daviplata (número)'], ['banco', 'Banco'], ['tipoCuenta', 'Tipo de cuenta'], ['cuenta', 'Número de cuenta'], ['titular', 'Titular'], ['cedula', 'Cédula o NIT']];
+    el.innerHTML = `<p class="muted" style="margin:0 0 10px;font-size:13px">Salen en el PDF de la cotización y en los recordatorios de pago. Se guardan solo en tu cuenta (no en el código).</p>
+      <form class="form" data-f>${F.map(([k, l]) => `<div class="field"><label for="d-${k}">${l}</label><input id="d-${k}" name="${k}" value="${esc(c[k] || '')}"></div>`).join('')}
+      <div class="field"><label>Hora mínima (calculadora)</label><input name="minimoHora" type="number" inputmode="numeric" step="1000" value="${minHora()}"></div>
+      <div class="row end"><button class="btn btn-create">✓ Guardar</button></div></form>`;
+    el.querySelector('[data-f]').addEventListener('submit', (e) => { e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target)); const mh = Number(fd.minimoHora) || 35000; delete fd.minimoHora; store.add('config', { ...c, ...fd, id: 'cobro' }); store.add('config', { ...(store.get('config', 'negocios') || {}), id: 'negocios', minimoHora: mh }); toast('✓ Datos guardados'); });
+  } };
 
-const QUICK = [
-  { label: 'Cotizar', icon: '🧮', color: '#E5175F', run: (api) => api.go('cotizador') },
-  { label: 'Cobrar', icon: '💵', color: '#FF7A00', run: (api) => api.go('cobros') },
-  { label: 'Nuevo cliente', icon: '🤝', color: '#A06CFF', run: () => openForm(clientes) },
-  { label: 'Registro', icon: '📒', color: '#00C2B2', run: (api) => api.go('registro') },
-];
-boot({ appId: 'negocios', version: VERSION, home, quick: QUICK, modules: [cotizador, fuentes, registro, trabajos, clientes, cobros, cronometro, calculadora, prospectos, servicios, combos] });
+boot({ appId: 'negocios', version: VERSION, home, homeLabel: 'Clientes', homeIcon: '💬', homeAdd: (api) => { resetQ(); api.go('cotizar'); },
+  modules: [prospectos, cotizar, midia, planes, cobros, trabajos, crono, empresas, datos] });

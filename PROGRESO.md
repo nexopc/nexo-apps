@@ -33,6 +33,10 @@
 - [x] C8b NEXO PLAN 1.9: sin metas en ningún lado (Proyectos, Mi día, Semana, Progreso, asistente); cada proyecto = nombre + notas + tareas
 - [x] C8c NEXO PLAN 1.10: ‹ Atrás en iPhone (barra y pantallas completas), ✕ y deslizar en ventanas, borde izquierdo y atrás del navegador
 - [x] C9 Actualizaciones sin fallas: service worker "red primero" (con internet siempre carga lo nuevo), versión del núcleo en el botón ⟳, recarga sola al estrenar versión
+## Fase D · una app a la vez, a fondo
+- [x] D1 NEXO Negocios 3 (según `docs/NEGOCIOS_V3.md`): arriba lo cobrado del mes vs la meta con semáforo y lo que te deben; abajo los clientes como en WhatsApp (lo urgente primero, buscar, filtros). Ficha con historia tipo chat, 4 plantillas de WhatsApp, cotizaciones (✅ Aprobó crea el trabajo y pide el anticipo), trabajos en 4 pasos, abonos con saldo que entran solos a Finanzas, notas. Cotizar sin cliente con descuentos (fundador, repite, pago completo, a mano) y PDF sin logo para compartir (vence a los 3 días). Prospectos aparte (🔥🌤❄️, próximo paso, ganado → cliente). Mi día (contactos/seguimientos ± y lo demás automático). Planes, combos, empresas y servicios con calculadora en cualquier momento. Mis datos de cobro en la cuenta, no en el código.
+- [x] D1b 🎯 Misiones secundarias 100 % automáticas (`core/misiones.js`): cobrar, seguimientos, prospectos del día, entregas, contactos y cotizar; cuántas según el semáforo (rojo 5 · amarillo 4 · verde 3); se marcan solas al hacer la acción; NEXO PLAN 1.11 las propone en ⚡ Organizar (naranja) y al hacerlas allá se marcan en Negocios; Harvey las ve
+- [x] Arreglo: Harvey "reorganiza mi día" fallaba sin mostrar la tarjeta Sí/No
 - [ ] C7 Semana base: tarea programada creada (domingos 5:43 p. m.), pero **sin el conector de Supabase**: hay que agregárselo desde claude.ai → Tareas programadas. Mientras tanto la semana se arma con ⚡ Organizar.
 - [x] Pruebas: 8 baterías con Playwright en iPhone 14, Pixel 7 y Windows (atrás, notas, cronómetro, Finanzas, Negocios, Plan, Aprende, Studio, Harvey, Hub)
 

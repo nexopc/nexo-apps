@@ -243,7 +243,7 @@ function askPin(title) {
 function applyTheme() { document.documentElement.dataset.theme = prefs.get('theme', 'dark'); }
 
 // ---------- Arranque de una app ----------
-export async function boot({ appId, version, modules, home, staticHome = false, quick = [] }) {
+export async function boot({ appId, version, modules, home, staticHome = false, quick = [], homeLabel = 'Inicio', homeIcon = '⌂', homeAdd = null, fabLabel = '' }) {
   const app = appById(appId);
   ctx = { app, version, modules, home };
   applyPlatform(); applyTheme();
@@ -253,7 +253,7 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
   await lockScreen({ title: app.name, logo: LOGOS[app.id] || LOGOS.custom });
   if (cloud.available()) cloud.init().catch(() => {});
 
-  const navMods = [{ id: 'home', title: 'Inicio', icon: '⌂' }, ...modules];
+  const navMods = [{ id: 'home', title: homeLabel, icon: homeIcon }, ...modules];
   const root = h(`<div class="shell">
     <header class="topbar">
       <button class="back-btn" data-a="back" aria-label="Atrás">‹ <span>Atrás</span></button>
@@ -297,7 +297,8 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
     }
     root.classList.toggle('at-home', current.id === 'home');
     document.querySelectorAll('[data-nav]').forEach((b) => b.setAttribute('aria-current', b.dataset.nav === current.id ? 'page' : 'false'));
-    fab.hidden = current.id === 'home' ? !modules.find((m) => m.fields && !m.noAdd) : !(current.fields && !current.noAdd);
+    fab.hidden = current.id === 'home' ? !(homeAdd || modules.find((m) => m.fields && !m.noAdd)) : !((current.fields && !current.noAdd) || current.onAdd);
+    fab.classList.toggle('wide', current.id === 'home' && !!fabLabel); fab.innerHTML = current.id === 'home' && fabLabel ? fabLabel : '＋';
     const ia = root.querySelector('.ios-add'); if (ia) ia.hidden = fab.hidden;
     paint();
     view.focus?.();
@@ -319,8 +320,10 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
     m.render ? m.render(el, api) : renderList(el, m);
   };
   const addCurrent = () => {
+    if (current.id === 'home' && homeAdd) return homeAdd(api);
     const m = current.id === 'home' ? modules.find((x) => x.fields && !x.noAdd) : current;
-    if (m?.fields && !m.noAdd) (m.onAdd ? m.onAdd(api) : openForm(m, null, m.preset?.() || {}));
+    if (m?.onAdd) return m.onAdd(api);
+    if (m?.fields && !m.noAdd) openForm(m, null, m.preset?.() || {});
   };
   const api = { go, paint, openForm, renderList, store, fmt, esc, h, toast, sheet, confirmSheet, modules, app,
     mod: (id) => modules.find((m) => m.id === id), openHarvey: (q) => openHarvey(q) };

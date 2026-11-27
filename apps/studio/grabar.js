@@ -1,7 +1,7 @@
 // 📍 Grabar ordenado por lugar: junta los planos de todos los videos que se graban en el mismo sitio.
 // Un plano grande a la vez: mapa, cámara, qué dice, en pantalla, tomas; "✅ Grabado · siguiente".
 import { store, fmt, esc, h, toast, sheet } from '../../core/shell.js';
-import { escenas, lugarName, claq, tipoL, editarArbol, colorCli, cname, tomaBuena } from './datos.js';
+import { escenas, lugarName, claq, tipoL, editarArbol, colorCli, cname, tomaBuena, itemsDe, mapaDe } from './datos.js';
 import { mapaHtml } from './mapa.js';
 
 const keyLugar = (e) => e.lugar || (e.lugarTxt ? 'txt:' + e.lugarTxt.toLowerCase() : 'sin');
@@ -36,16 +36,18 @@ export function abrirGrabacion({ vid = null, lugar = null } = {}, after = () => 
   const cur = () => { const it = items[i]; const v = store.get('videos', it.vid); const e = escenas(v)[it.si]; return { it, v, e, p: e?.planos[it.pi] }; };
   const paint = () => {
     const { it, v, e, p } = cur(); if (!p) { s.close(); return; }
+    const its = itemsDe(p); const mp = mapaDe(p);
     const hechos = items.filter((x) => escenas(store.get('videos', x.vid))[x.si]?.planos[x.pi]?.grabado).length;
     s.el.querySelector('.sheet-head h2').textContent = '📍 ' + (lugarName(e) || 'Sin lugar');
     body.innerHTML = `<div class="muted" style="font-size:12px">plano ${i + 1} de ${items.length} aquí · ${hechos} grabados</div>
       <div class="bar" style="margin:6px 0 10px"><i style="width:${hechos / items.length * 100}%;background:var(--c-create)"></i></div>
-      ${p.mapa?.length ? mapaHtml(p.mapa, { mini: true }) : ''}
+      ${mp.length ? mapaHtml(mp, { mini: true }) : ''}
       <span class="chip" style="margin-top:8px;--k:${esc(colorCli(v.client))};border-left:3px solid var(--k)">${esc(v.title)} · ${claq(it.si, it.pi)} ${esc(tipoL(p.tipo))}${p.seg ? ' · ' + p.seg + ' s' : ''}${p.mov ? ' · ' + esc(p.mov) : ''}</span>
-      <div class="bigq">${p.desc ? `<div>🎬 ${esc(p.desc)}</div>` : ''}${p.cam?.donde || p.cam?.mira ? `<div>📷 ${esc([p.cam.donde, p.cam.mira && 'mirando ' + p.cam.mira].filter(Boolean).join(', '))}${p.cam.altura ? ' · altura ' + esc(p.cam.altura) : ''}${p.cam.zoom ? ' · ' + esc(p.cam.zoom) : ''}</div>` : ''}
-        ${(p.personas || []).map((q) => `<div>🧍 <b>${esc(q.nombre || 'Persona')}</b>${q.donde ? ' (' + esc(q.donde) + ')' : ''}${q.hace ? ', ' + esc(q.hace) : ''}${q.dice ? `: “${esc(q.dice)}”` : ''}</div>`).join('')}
-        ${!p.desc && !p.cam?.donde && !(p.personas || []).length ? '<div class="muted">Plano sin detalles: grábalo a tu criterio.</div>' : ''}</div>
-      ${p.pantalla ? `<div class="muted" style="font-size:13px">🔤 En pantalla: “${esc(p.pantalla)}”</div>` : ''}
+      <div class="bigq">${p.desc ? `<div>🎬 ${esc(p.desc)}</div>` : ''}
+        ${its.filter((x) => x.k !== 'mapa').map((x) => x.k === 'persona' ? `<div>🧍 <b>${esc(x.nombre || 'Persona')}</b>${x.donde ? ' (' + esc(x.donde) + ')' : ''}${x.hace ? ', ' + esc(x.hace) : ''}${x.dice ? `: “${esc(x.dice)}”` : ''}</div>`
+          : x.k === 'camara' ? ((x.donde || x.mira) ? `<div>📷 ${esc([x.donde, x.mira && 'mirando ' + x.mira].filter(Boolean).join(', '))}${x.altura ? ' · altura ' + esc(x.altura) : ''}${x.zoom ? ' · ' + esc(x.zoom) : ''}</div>` : '')
+          : x.texto ? `<div class="${x.k === 'nota' ? 'muted' : ''}" style="font-size:14px">${x.k === 'pantalla' ? '🔤 En pantalla' : '📝'}: “${esc(x.texto)}”</div>` : '').join('')}
+        ${!p.desc && !its.some((x) => x.dice || x.donde || x.mira || x.texto) ? '<div class="muted">Plano sin detalles: grábalo a tu criterio.</div>' : ''}</div>
       <div class="sec3">Tomas</div>
       <div class="tks">${(p.tomas || []).map((t) => `<button data-tk="${t.n}" class="${t.buena ? 'ok' : ''}">T${t.n}${t.buena ? ' ✓ buena' : ''}</button>`).join('')}<button data-a="nt">＋ toma</button></div>
       <div class="row recnav"><button class="btn btn-cancel" data-a="prev" ${i === 0 ? 'disabled' : ''}>‹ Anterior</button><button class="btn btn-create" data-a="ok">${p.grabado ? '✓ Grabado · siguiente ›' : '✅ Grabado · siguiente ›'}</button></div>

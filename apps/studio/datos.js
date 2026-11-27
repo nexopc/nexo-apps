@@ -35,16 +35,40 @@ export const PLANT = [
   { k: 'cenital', l: 'Desde arriba', e: '⬇️', seg: 3, mov: 'fijo', cam: { altura: 'arriba', soporte: 'trípode', zoom: '1x' }, d: 'Mesa o producto visto desde arriba' },
 ];
 export const MOVS = ['fijo', 'paneo lento', 'acercarse', 'alejarse', 'seguir a la persona', 'en mano', 'cámara lenta'];
-export function nuevoPlano(k = 'medio') {
-  const p = PLANT.find((x) => x.k === k) || PLANT[1];
-  return { id: uid(), tipo: p.k, seg: p.seg, mov: p.mov, desc: '', mapa: [], cam: { donde: '', mira: '', ...p.cam }, personas: [], pantalla: '', tomas: [], grabado: false };
+// Plano: todo es opcional. Lo de adentro va en "items", en el orden en que lo agregues:
+// { k: 'persona', nombre, dice, donde, hace } · { k: 'camara', donde, mira, altura, zoom, soporte } · { k: 'mapa', mapa: [...] } · { k: 'pantalla', texto } · { k: 'nota', texto }
+export function nuevoPlano() { return { id: uid(), tipo: '', seg: 0, mov: '', desc: '', items: [], tomas: [], grabado: false }; }
+export const ITEM = { persona: ['🧍', 'Diálogo'], camara: ['📷', 'Cámara'], mapa: ['🗺', 'Mapa'], pantalla: ['🔤', 'Texto en pantalla'], nota: ['📝', 'Nota'] };
+export function nuevoItem(k) {
+  const base = { id: uid(), k };
+  if (k === 'persona') return { ...base, nombre: '', dice: '', donde: '', hace: '' };
+  if (k === 'camara') return { ...base, donde: '', mira: '', altura: '', zoom: '', soporte: '' };
+  if (k === 'mapa') return { ...base, mapa: [] };
+  return { ...base, texto: '' };
 }
+// Convierte planos de la versión anterior (cam, personas, mapa, pantalla sueltos) a items
+export function norm(p) {
+  if (Array.isArray(p.items)) return p;
+  const items = [];
+  if (p.mapa?.length) items.push({ id: uid(), k: 'mapa', mapa: p.mapa });
+  if (p.cam && (p.cam.donde || p.cam.mira)) items.push({ id: uid(), k: 'camara', donde: p.cam.donde || '', mira: p.cam.mira || '', altura: p.cam.altura || '', zoom: p.cam.zoom || '', soporte: p.cam.soporte || '' });
+  for (const q of p.personas || []) items.push({ id: uid(), k: 'persona', nombre: q.nombre || '', dice: q.dice || '', donde: q.donde || '', hace: q.hace || '' });
+  if (p.pantalla) items.push({ id: uid(), k: 'pantalla', texto: p.pantalla });
+  const { mapa, cam, personas, pantalla, ...rest } = p;
+  return { ...rest, items };
+}
+export const itemsDe = (p) => norm(p).items;
+export const personasDe = (p) => itemsDe(p).filter((i) => i.k === 'persona');
+export const camDe = (p) => itemsDe(p).find((i) => i.k === 'camara') || null;
+export const mapaDe = (p) => itemsDe(p).find((i) => i.k === 'mapa' && i.mapa?.length)?.mapa || [];
+export const pantallasDe = (p) => itemsDe(p).filter((i) => i.k === 'pantalla' && i.texto).map((i) => i.texto);
+export const notasDe = (p) => itemsDe(p).filter((i) => i.k === 'nota' && i.texto).map((i) => i.texto);
 export const tipoL = (k) => PLANT.find((x) => x.k === k)?.l || k || 'Plano';
 export const copia = (o) => JSON.parse(JSON.stringify(o));
 // Cambia el árbol de un video y lo guarda (devuelve el árbol nuevo)
 export function editarArbol(vid, fn) {
   const v = store.get('videos', vid); if (!v) return null;
-  const esc = copia(escenas(v)); fn(esc);
+  const esc = copia(escenas(v)).map((e) => ({ ...e, planos: (e.planos || []).map(norm) })); fn(esc);
   const extra = {};
   const nPl = esc.reduce((a, e) => a + e.planos.length, 0);
   if ((v.status || 'idea') === 'idea' && nPl) extra.status = 'guion';
@@ -88,7 +112,7 @@ export function listaEdicion(v) {
   if (v.gancho) add('gancho', `Gancho en los primeros 3 s: "${v.gancho}"`, 'gancho');
   if (v.musica) add('musica', `Música: ${v.musica}`, 'musica');
   esc.forEach((e, si) => e.planos.forEach((p, pi) => {
-    if (p.pantalla) add('txt-' + p.id, `Texto en pantalla: "${p.pantalla}"`, 'texto', claq(si, pi));
+    pantallasDe(p).forEach((t, k) => add('txt-' + p.id + '-' + k, `Texto en pantalla: "${t}"`, 'texto', claq(si, pi)));
     if (/acerc|alej/.test(p.mov || '')) add('zoom-' + p.id, `Zoom suave (${p.mov})`, 'zoom', claq(si, pi));
     if (/lenta/.test(p.mov || '')) add('lenta-' + p.id, 'Cámara lenta', 'lenta', claq(si, pi));
   }));

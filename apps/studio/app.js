@@ -6,9 +6,10 @@ import { videoPage, abrirVideo, metroHtml, dictar } from './guion.js';
 import { grabarMod, grupos, abrirGrabacion } from './grabar.js';
 import { compartirPlan } from './pdfs.js';
 import { mapaEditor } from './mapa.js';
+import { crearCliente, clientesMod } from './clientes.js';
 import { subirFoto, pintarFotos, borrarFoto } from '../../core/fotos.js';
 
-const VERSION = '3.0.0';
+const VERSION = '3.1.0';
 let API = null;
 
 // ---------- 🎙 idea por voz ----------
@@ -28,11 +29,13 @@ function ideaRapida({ auto = false } = {}) {
 function nuevoVideo({ title = '', idea = null, client = '' } = {}) {
   const cs = store.list('clients');
   const f = h(`<form class="form" novalidate><div class="field"><label for="nv">Nombre del video</label><input id="nv" value="${esc(title)}" placeholder="Reel promo diciembre"></div>
-    <div class="field"><label>Cliente</label><div class="picks"><button type="button" class="pick sm ${client ? '' : 'on'}" data-c="">NEXO PC / propio</button>${cs.map((c) => `<button type="button" class="pick sm ${c.id === client ? 'on' : ''}" data-c="${c.id}" style="--k:${esc(colorCli(c.id))}"><i class="cdot" style="background:var(--k)"></i>${esc(c.name)}</button>`).join('')}</div></div>
+    <div class="field"><label>Cliente</label><div class="picks"><button type="button" class="pick sm ${client ? '' : 'on'}" data-c="">NEXO PC / propio</button>${cs.map((c) => `<button type="button" class="pick sm ${c.id === client ? 'on' : ''}" data-c="${c.id}" style="--k:${esc(colorCli(c.id))}"><i class="cdot" style="background:var(--k)"></i>${esc(c.name)}</button>`).join('')}<button type="button" class="pick sm add" data-a="ncli">＋ Cliente nuevo</button></div></div>
     <div class="field"><label for="nd">Entrega (opcional)</label><input id="nd" type="date"></div>
     <div class="row end"><button class="btn btn-create">＋ Crear y armar el guion</button></div></form>`);
   const s = sheet('🎬 Nuevo video', f); let cli = client;
-  f.addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { cli = b.dataset.c; f.querySelectorAll('[data-c]').forEach((x) => x.classList.toggle('on', x === b)); } });
+  const pick = (b) => { cli = b.dataset.c; f.querySelectorAll('[data-c]').forEach((x) => x.classList.toggle('on', x === b)); };
+  f.addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) pick(b);
+    const n = e.target.closest('[data-a=ncli]'); if (n) crearCliente((c) => { if (!c) return; const nb = h(`<button type="button" class="pick sm" data-c="${c.id}"><i class="cdot" style="background:${esc(colorCli(c.id))}"></i>${esc(c.name)}</button>`); n.before(nb); pick(nb); }); });
   f.addEventListener('submit', (e) => { e.preventDefault(); const t = f.querySelector('#nv').value.trim(); if (!t) return toast('Ponle nombre (lo demás es opcional)');
     const v = store.add('videos', { title: t, client: cli, status: 'idea', due: f.querySelector('#nd').value, escenas: [], tags: idea?.tags || '', gancho: idea?.hook ? '' : '', idea: idea?.id || '' });
     if (idea) store.update('ideas', idea.id, { video: v.id });
@@ -106,7 +109,7 @@ const planMod = { id: 'plan', title: 'Plan del mes', icon: '🗓',
   render(el, api) {
     const conVid = [...new Set(store.list('videos').map((v) => v.client).filter(Boolean))];
     const cs = store.list('clients').filter((c) => conVid.includes(c.id) || store.list('jobs').some((j) => j.client === c.id && ['aprobado', 'en curso'].includes(j.status)));
-    if (!cs.length) { el.innerHTML = '<div class="empty"><b>Aún no hay clientes con videos</b>Crea un video con cliente (＋ en el inicio) o aprueba en Negocios un plan que incluya videos.</div>'; return; }
+    if (!cs.length) { el.innerHTML = '<div class="empty"><b>Aún no hay clientes con videos</b>Crea un cliente en ⋯ Más → 👥 Clientes (o al crear un video) y ponle videos, o aprueba en Negocios un plan que incluya videos.</div>'; return; }
     if (!cs.some((c) => c.id === P.cli)) P.cli = cs[0].id;
     const [y, m] = P.mes.split('-').map(Number); const first = new Date(y, m - 1, 1); const days = new Date(y, m, 0).getDate(); const pad = (first.getDay() + 6) % 7;
     const vs = store.list('videos').filter((v) => v.client === P.cli);
@@ -211,4 +214,4 @@ const portafolio = fromSchema('portfolio', { id: 'portafolio', title: 'Portafoli
 
 migrar();
 boot({ appId: 'studio', version: VERSION, home, homeLabel: 'Videos', homeIcon: '🎬', homeAdd: () => nuevoVideo(),
-  modules: [ideasMod, grabarMod, planMod, lugMod, numMod, videoPage, portafolio, referencias, clips] });
+  modules: [ideasMod, grabarMod, planMod, clientesMod, lugMod, numMod, videoPage, portafolio, referencias, clips] });

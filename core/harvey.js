@@ -4,7 +4,8 @@
 import { balances } from './fx.js';
 import { store, prefs, fmt } from './store.js';
 import { planInfo, planDay, sendToPlan, PLAN_CATS } from './planlink.js';
-import { planSnapshot, dayBlocks, CATS as NCATS, topicNeed, topicDone } from './planner.js';
+import { topicNeed, topicDone } from './planner.js';
+const NCATS = { estudio: 1, trabajo: 1, cliente: 1, contenido: 1, salud: 1, personal: 1, descanso: 1 };
 import { avisos } from './avisos.js';
 import { timer } from './timer.js';
 import { SCHEMA, schemaForAI } from './schema.js';
@@ -73,11 +74,13 @@ export function snapshot() {
   const counts = Object.fromEntries(COLS.map((c) => [c, store.list(c).length]).filter(([, n]) => n));
   return {
     hoy: today, dia: fmt.day(), hora: new Date().toTimeString().slice(0, 5),
-    nexo_plan: planSnapshot(today),
-    horario_hoy: planSnapshot(today).hoy,
+    nexo_plan: planInfo() ? 'conectado (actualizado ' + String(planInfo().updatedAt || '').slice(0, 16).replace('T', ' ') + ')' : 'sin datos: abre NEXO PLAN una vez en este dispositivo',
+    horario_hoy: (planDay(today) || []).map((b) => `${b.s}-${b.e} ${b.title} [${b.cat}]${b.fijo ? ' 🔒' : ''}${b.ancla ? ' ⚓' : ''}${b.estado ? ' (' + b.estado + ')' : ''}`),
+    horario_manana: (planInfo()?.manana || []).map((b) => `${b.s}-${b.e} ${b.title}${b.fijo ? ' 🔒' : ''}`),
+    proyectos: store.list('proyectos').filter((p) => p.status !== 'terminado').map((p) => `${p.name} [${p.status || 'activo'}]`),
     tareas_pendientes: store.list('tareas').filter((t) => !t.done).map((t) => ({ t: t.title, p: (Number(t.imp) || 3) * (Number(t.urg) || 3) >= 16 ? 'alta' : (Number(t.imp) || 3) * (Number(t.urg) || 3) >= 9 ? 'media' : 'baja', para: t.due || '' })).slice(0, 20),
-    eventos_proximos: store.list('agenda').filter((a) => a.date >= today && a.fixed).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).slice(0, 8).map((a) => `${a.date} ${a.start} ${a.title}`),
-    nexo_plan_clasico: planInfo() ? { hoy: (planDay(today) || []).map((b) => `${b.s}-${b.e} ${b.title}`), tareas: (planInfo()?.tareas || []).slice(0, 10).map((t) => t.titulo) } : 'sin datos',
+    eventos_proximos: (planInfo()?.tareas || []).filter((t) => t.para && t.para.slice(0, 10) >= today).sort((a, b) => a.para.localeCompare(b.para)).slice(0, 8).map((t) => `${t.para.replace('T', ' ')} ${t.titulo}`),
+    entregas_colegio: (planInfo()?.tareas || []).slice(0, 10).map((t) => t.titulo),
     estudio_semana: store.list('topics').map((t) => `${t.name} [${t.type}]: ${Math.round(topicDone(t, today))} de ${topicNeed(t)} min`),
     cronometro: timer.state() ? `${timer.state().label} (${Math.round(timer.elapsed() / 60000)} min)` : 'parado',
     lo_que_se_de_el: store.list('memoria').map((m) => m.text).slice(-30),
@@ -114,8 +117,8 @@ Para crear, actualizar o borrar usa crear / actualizar / borrar: la app le muest
 Fechas en formato AAAA-MM-DD, horas HH:MM, dinero en pesos colombianos como número sin puntos.
 Nunca leas entradas del diario marcadas como privadas.
 
-Su tiempo vive en NEXO Plan (nuevo, dentro de la red): horario base (bloques), días ajustados (dias), bloques sueltos (agenda), proyectos y tareas con importancia y urgencia de 1 a 5. El contexto trae su horario de hoy y mañana (🔒 = fijo) y sus tareas top.
-Tareas, exámenes y entregas: usa tarea_plan (crea en la colección tareas de NEXO Plan; si te dice fecha y hora exacta, también queda en la agenda).
+Su tiempo vive en NEXO PLAN: horario por bloques (🔒 fijo, ⚓ ancla), Mi día, Semana, Ejercicio y Progreso. Sus proyectos y tareas con importancia y urgencia de 1 a 5 están en las colecciones proyectos y tareas (NEXO PLAN las muestra en Proyectos y su botón ⚡ Organizar las pone en sus ratos libres). El contexto trae su horario de hoy y mañana y sus tareas top.
+Tareas, exámenes y entregas: usa tarea_plan (crea la tarea con importancia y urgencia; si es del colegio con materia, también llega como entrega a NEXO PLAN con sus avisos).
 Reorganizar el horario: cuando pida mover, cambiar o reorganizar su día (o "agéndame", "no alcancé", "me salió algo"), usa reorganizar_dia con la lista COMPLETA de bloques de esa fecha. Respeta los bloques fijos (🔒: colegio, clases, citas con clientes, dormir) salvo que él diga lo contrario. No cambies lo que ya pasó hoy. Mete primero las tareas de prioridad alta y las que vencen pronto, deja descansos cortos y no pases de las 11 pm. El horario base de la semana no se toca: el ajuste vale solo para esa fecha.
 
 Colecciones y campos:
@@ -219,13 +222,9 @@ async function makeTools(ui) {
         const added = after.filter((x) => !before.includes(x)).map((x) => '+ ' + x);
         const body = `${motivo ? motivo + '\n\n' : ''}${[...removed, ...added].join('\n') || 'Sin cambios'}\n\nNUEVO DÍA:\n${after.join('\n')}`;
         if (!(await ui.confirm(`🗓 Reorganizar ${fmt.date(fecha)}`, body))) return 'El usuario dijo NO. El horario no cambió.';
-        // NEXO Plan nuevo: el día queda ajustado con esta lista completa (los bloques sueltos de ese día ya vienen incluidos)
-        for (const a of store.list('agenda').filter((x) => x.date === fecha && !x.done)) store.remove('agenda', a.id);
-        store.add('dias', { id: fecha, reason: motivo || 'Reorganizado por Harvey', by: 'harvey', blocks: clean.map((b) => ({ title: b.title, start: b.s, end: b.e, cat: b.cat, fixed: b.fixed })) });
-        // NEXO PLAN clásico (mientras lo sigas usando)
         const CL = { estudio: 'tareas', trabajo: 'agencia', cliente: 'cliente', contenido: 'video', salud: 'ejercicio', personal: 'rutina', descanso: 'libre' };
         sendToPlan({ type: 'dayEdit', date: fecha, reason: motivo || '', blocks: clean.map((b) => ({ s: b.s, e: b.e, title: b.title, cat: PLAN_CATS.includes(CL[b.cat]) ? CL[b.cat] : 'rutina' })) });
-        return `Listo: el ${fecha} quedó con ${clean.length} bloques en NEXO Plan.`;
+        return `Enviado a NEXO PLAN: el ${fecha} queda con ${clean.length} bloques (se aplica al abrir o volver a NEXO PLAN).`;
       },
     }),
     betaTool({
@@ -244,9 +243,8 @@ async function makeTools(ui) {
         if (!(await ui.confirm(`➕ Nueva en NEXO Plan · ${titulo}`, body))) return 'El usuario dijo NO.';
         const due = para ? para.slice(0, 10) : '';
         store.add('tareas', { title: titulo, imp, urg, minutes: Math.min(240, Math.max(15, Number(minutos) || 30)), due, done: false, tipo: tipo || 'tarea', notes: [materia, notas].filter(Boolean).join(' · ') });
-        if (para && para.length > 10) { const [hh, mm] = para.slice(11).split(':').map(Number); const end = hh * 60 + mm + Math.min(240, Math.max(15, Number(minutos) || 60)); store.add('agenda', { date: due, start: para.slice(11), end: `${String(Math.floor(end / 60) % 24).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`, title: titulo, fixed: true, cat: tipo === 'examen' ? 'estudio' : 'trabajo', src: 'harvey' }); }
-        sendToPlan({ type: 'task', title: titulo, tipo: tipo || 'tarea', due: para || '', subj: materia || '', notes: notas || '' });
-        return 'Creada en NEXO Plan.';
+        if (materia || (tipo && tipo !== 'tarea') || (para && para.length > 10)) sendToPlan({ type: 'task', title: titulo, tipo: tipo || 'tarea', due: para || '', subj: materia || '', notes: notas || '' });
+        return 'Creada en NEXO PLAN (Proyectos → Tareas).';
       },
     }),
     betaTool({

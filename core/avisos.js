@@ -3,7 +3,8 @@
 // - Una vez al día los cerebros dejan un reporte en el chat de Harvey (el mismo en todos tus dispositivos).
 // - Si activaste notificaciones, llega una notificación del dispositivo (una vez al día por dispositivo).
 import { store, fmt, prefs } from './store.js';
-import { dayBlocks, toMin, weekday, topicNeed, topicDone, overlaps, score } from './planner.js';
+import { toMin, weekday, topicNeed, topicDone, score } from './planner.js';
+import { planDay } from './planlink.js';
 
 const B = { harvey: '⚖️ Harvey', donna: '💜 Donna', louis: '📊 Louis', mike: '📚 Mike', jessica: '👑 Jessica' };
 const dd = (x, t) => Math.round((new Date(x + 'T12:00') - new Date(t + 'T12:00')) / 864e5);
@@ -13,18 +14,16 @@ export function avisos(now = new Date()) {
   const add = (brain, sev, icon, text, app) => out.push({ brain, sev, icon, text, app });
   const nowM = now.getHours() * 60 + now.getMinutes();
   // ---- Donna: agenda y tareas
-  const bs = dayBlocks(t);
-  const missed = bs.filter((b) => !b.done && !b.fixed && toMin(b.end) && toMin(b.end) <= nowM);
-  if (missed.length >= 2) add('donna', 'alta', '🗓', `Hoy van ${missed.length} bloques sin marcar como hechos (${missed.slice(0, 2).map((b) => b.title.replace(/^📚 /, '')).join(', ')}…). ¿Reorganizo lo que queda del día?`, 'plan');
-  if (overlaps(t).length) add('donna', 'media', '⚠️', `Tienes ${overlaps(t).length} choque(s) de horario hoy.`, 'plan');
+  const bs = (planDay(t) || []).filter((b) => !['libre', 'dormir', 'rutina', 'colegio'].includes(b.cat));
+  const missed = bs.filter((b) => !b.estado && toMin(b.e) && toMin(b.e) <= nowM);
+  if (missed.length >= 2) add('donna', 'alta', '🗓', `Hoy van ${missed.length} bloques sin marcar en NEXO PLAN (${missed.slice(0, 2).map((b) => b.title).join(', ')}…). ¿Reorganizo lo que queda del día?`, 'plan');
   const tareas = store.list('tareas').filter((x) => !x.done);
   const vencidas = tareas.filter((x) => x.due && x.due < t);
   if (vencidas.length) add('donna', 'alta', '✅', `${vencidas.length} tarea(s) vencida(s): ${vencidas.slice(0, 2).map((x) => x.title).join(', ')}.`, 'plan');
   tareas.filter((x) => x.due === t).forEach((x) => add('donna', 'media', '✅', `Para hoy: ${x.title}`, 'plan'));
   const top = tareas.filter((x) => score(x) >= 20 && !x.due).length;
   if (top >= 3) add('jessica', 'media', '👑', `Tienes ${top} tareas "muy importantes y urgentes" a la vez. Si todo es urgente, nada lo es: elige una.`, 'plan');
-  // NEXO PLAN clásico (mientras se use)
-  (store.raw('planBridge')[0]?.tareas || []).filter((x) => x.para && x.para.slice(0, 10) < t).slice(0, 3).forEach((x) => add('donna', 'media', '🕰', `Vencida en NEXO PLAN clásico: ${x.titulo}`, 'planclasico'));
+  (store.raw('planBridge')[0]?.tareas || []).filter((x) => x.para && x.para.slice(0, 10) < t).slice(0, 3).forEach((x) => add('donna', 'media', '🕰', `Entrega vencida en NEXO PLAN: ${x.titulo}`, 'plan'));
   // ---- Mike: estudio
   const frac = (weekday(t) + 1) / 7;
   for (const tp of store.list('topics')) {

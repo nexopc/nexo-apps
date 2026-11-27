@@ -4,7 +4,7 @@ import { estado, P10_CSS, SEMA } from '../../core/plan10m.js';
 import { timer, clock } from '../../core/timer.js';
 { const st = document.createElement('style'); st.textContent = P10_CSS; document.head.appendChild(st); }
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const STATUS = [['cotizado', 'Cotizado', 's-edit'], ['aprobado', 'Aprobado', 's-pending'], ['en curso', 'En curso', 's-pending'], ['entregado', 'Entregado', 's-create'], ['pagado', 'Pagado', 's-create']];
 const STAGES = [['nuevo', 'Nuevo'], ['contactado', 'Contactado'], ['reunión', 'Reunión'], ['propuesta', 'Propuesta'], ['ganado', 'Ganado'], ['perdido', 'Perdido']];
 const name = (col, id) => store.get(col, id)?.name || store.get(col, id)?.title || '';

@@ -2,7 +2,7 @@
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey } from '../../core/shell.js';
 import { ST, metro, videoSheet, setShootMod, scriptEditor, startScript, quickIdea, contenido, biblioteca, scenesOf } from './v2.js';
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const cname = (id) => store.get('clients', id)?.name || '';
 
 const ideas = fromSchema('ideas', { id: 'ideas', title: 'Ideas', icon: '💡', single: 'idea',

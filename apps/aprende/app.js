@@ -1,9 +1,10 @@
 // NEXO Aprende · tu estudio
 import { boot, fromSchema, store, fmt, esc, h, openForm, toast, sheet, openHarvey, prefs, openTimer } from '../../core/shell.js';
 import { timer } from '../../core/timer.js';
-import { DAYS, studiedMin, topicNeed, topicDone, score, organizeRange, addDays, mondayOf, weekday } from '../../core/planner.js';
+import { DAYS, studiedMin, topicNeed, topicDone, score, addDays, mondayOf, weekday } from '../../core/planner.js';
+import { PLAN_URL } from '../../core/planlink.js';
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const INTERVAL = [1, 2, 4, 8, 16]; // días por caja (sistema Leitner)
 const sname = (id) => store.get('subjects', id)?.name || '';
 const daysTo = (d) => Math.round((new Date(d + 'T12:00') - new Date(fmt.today() + 'T12:00')) / 864e5);
@@ -35,7 +36,7 @@ const temas = fromSchema('topics', { id: 'temas', title: 'Temas', icon: '⚛️'
     const run = timer.state();
     const totN = ts.reduce((a, t) => a + need(t), 0), totD = ts.reduce((a, t) => a + topicDone(t), 0);
     el.innerHTML = ts.length ? `<div class="card wk"><div class="row" style="justify-content:space-between"><b>Esta semana</b><span class="num">${hm(totD)} de ${hm(totN)}</span></div><div class="bar"><i style="width:${totN ? Math.min(100, (totD / totN) * 100) : 0}%"></i></div>
-        <div class="row" style="margin-top:8px"><button class="btn btn-ai sm" data-a="agendar">📅 Agendar lo que falta en mi Plan</button></div></div>
+        <div class="row" style="margin-top:8px"><button class="btn btn-ai sm" data-a="agendar">⚡ Organizar lo que falta en NEXO PLAN</button></div></div>
       <div class="grid section">${ts.map((t) => { const n = need(t), d = topicDone(t); const [ic, lb] = TYPE[t.type || 'flexible']; const late = n && d < n * ((weekday(fmt.today()) + 1) / 7) * 0.6;
         return `<div class="card topic" data-t="${t.id}" style="--k:${esc(t.color || 'var(--accent)')}"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${esc(t.name)}</b><span class="chip">${ic} ${lb}</span></div>
           <span class="muted num" style="font-size:13px">${t.type === 'fija' && t.classTime ? `${(t.classDays || []).map((x) => DAYS[x].slice(0, 2)).join(' ')} ${t.classTime} · ` : ''}${hm(d)} de ${hm(n)} · imp ${t.imp || 3} · urg ${t.urg || 3}</span>
@@ -49,11 +50,8 @@ const temas = fromSchema('topics', { id: 'temas', title: 'Temas', icon: '⚛️'
     };
   },
   preset: () => ({ type: 'flexible', hoursWeek: 2, imp: 3, urg: 3, classDays: [] }) });
-function agendarEstudio() {
-  const t = fmt.today(); const days = [...Array(7 - weekday(t))].map((_, i) => addDays(t, i));
-  const made = organizeRange(days).filter((r) => r.topic);
-  toast(made.length ? `📅 ${made.length} bloques de estudio en tu Plan (puedes moverlos allá)` : 'No hay huecos libres o ya está todo agendado');
-}
+// El estudio que falta se organiza en NEXO PLAN (⚡ Organizar): te propone horas en tus ratos libres y tú eliges
+function agendarEstudio() { location.href = PLAN_URL + '#organizar'; }
 function topicSheet(t) {
   if (!t) return;
   const body = h('<div class="form"></div>');

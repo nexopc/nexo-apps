@@ -296,3 +296,6 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; text-wra
 /* espacio al final para que el último elemento nunca quede debajo de los botones flotantes */
 .main { padding-bottom: calc(220px + var(--safe-b)); }
 [data-os="windows"] .main, [data-os="desktop"] .main { padding-bottom: 120px; }
+
+.fab.wide { width: auto; padding: 0 20px; border-radius: 18px; font-size: 16px; gap: 6px; display: flex; align-items: center; }
+[data-os="ios"] .fab.wide { display: flex; }

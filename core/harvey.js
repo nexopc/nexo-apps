@@ -78,6 +78,7 @@ export function snapshot() {
     horario_hoy: (planDay(today) || []).map((b) => `${b.s}-${b.e} ${b.title} [${b.cat}]${b.fijo ? ' 🔒' : ''}${b.ancla ? ' ⚓' : ''}${b.estado ? ' (' + b.estado + ')' : ''}`),
     horario_manana: (planInfo()?.manana || []).map((b) => `${b.s}-${b.e} ${b.title}${b.fijo ? ' 🔒' : ''}`),
     proyectos: store.list('proyectos').filter((p) => p.status !== 'terminado').map((p) => `${p.name} [${p.status || 'activo'}]`),
+    misiones_hoy: store.list('misiones').filter((m) => m.date === fmt.today()).map((m) => ({ t: m.title, hecha: !!m.done })).slice(0, 10),
     tareas_pendientes: store.list('tareas').filter((t) => !t.done).map((t) => ({ t: t.title, p: (Number(t.imp) || 3) * (Number(t.urg) || 3) >= 16 ? 'alta' : (Number(t.imp) || 3) * (Number(t.urg) || 3) >= 9 ? 'media' : 'baja', para: t.due || '' })).slice(0, 20),
     eventos_proximos: (planInfo()?.tareas || []).filter((t) => t.para && t.para.slice(0, 10) >= today).sort((a, b) => a.para.localeCompare(b.para)).slice(0, 8).map((t) => `${t.para.replace('T', ' ')} ${t.titulo}`),
     entregas_colegio: (planInfo()?.tareas || []).slice(0, 10).map((t) => t.titulo),
@@ -216,7 +217,7 @@ async function makeTools(ui) {
         const hm = /^\d{2}:\d{2}$/;
         const clean = bloques.filter((b) => b && hm.test(b.start) && hm.test(b.end) && b.title).map((b) => ({ s: b.start, e: b.end, title: String(b.title), cat: NCATS[b.cat] ? b.cat : 'trabajo', fixed: !!b.fijo })).sort((a, b) => a.s.localeCompare(b.s));
         if (!clean.length) throw new Error('Ningún bloque tiene start/end HH:MM y title');
-        const before = dayBlocks(fecha).map((b) => `${b.start}-${b.end} ${b.title}`);
+        const before = (planDay(fecha) || []).map((b) => `${b.start || b.s}-${b.end || b.e} ${b.title || b.t || ''}`);
         const after = clean.map((b) => `${b.s}-${b.e} ${b.title}`);
         const removed = before.filter((x) => !after.includes(x)).map((x) => '− ' + x);
         const added = after.filter((x) => !before.includes(x)).map((x) => '+ ' + x);

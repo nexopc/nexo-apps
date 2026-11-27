@@ -71,8 +71,8 @@ export const SCHEMA = {
   ] },
 
   // ---------- NEXO Negocios ----------
-  sources: { app: 'negocios', label: 'Marcas / fuentes de ingreso', fields: [
-    { k: 'name', label: 'Marca o fuente', required: true, ph: 'NEXO PC, Agencia, Marca personal…' }, { k: 'color', label: 'Color', type: 'color' },
+  sources: { app: 'negocios', label: 'Empresas / fuentes de ingreso', fields: [
+    { k: 'name', label: 'Empresa o marca', required: true, ph: 'NEXO PC, Agencia, Marca personal…' }, { k: 'color', label: 'Color', type: 'color' },
     { k: 'lema', label: 'Lema' }, { k: 'cliente', label: 'Cliente ideal' },
     { k: 'estado', label: 'Estado', type: 'select', options: [['activa', '🟢 Activa'], ['pausada', '⏸ Pausada'], ['futura', '📅 Empieza en una fecha']], default: 'activa' },
     { k: 'inicio', label: 'Empieza (si es futura)', type: 'date' }, { k: 'metaMes', label: 'Meta de ingresos al mes', type: 'money' },
@@ -84,7 +84,7 @@ export const SCHEMA = {
     { k: 'price', label: 'Precio', type: 'money', required: true }, { k: 'monthly', label: 'Mensualidad (si aplica)', type: 'money' },
     { k: 'mensual', label: 'Es un servicio mensual', type: 'check' }, { k: 'hours', label: 'Horas estimadas', type: 'number' },
     { k: 'costos', label: 'Costos por trabajo (datos, transporte, materiales…)', type: 'money' },
-    { k: 'anticipo', label: 'Anticipo %', type: 'number', default: 50 },
+    { k: 'anticipo', label: 'Anticipo %', type: 'number', default: 50 }, { k: 'entrega', label: 'Tiempo de entrega', ph: '5 días hábiles' },
     { k: 'desc', label: 'Qué incluye', type: 'textarea' }, { k: 'noIncluye', label: 'No incluye', type: 'textarea' },
   ] },
   combos: { app: 'negocios', label: 'Combos', fields: [
@@ -103,14 +103,17 @@ export const SCHEMA = {
   ] },
   config: { app: 'negocios', label: 'Configuración y metas (Plan $10M)', hidden: true, fields: [{ k: 'nombre', label: 'Nombre' }] },
   clients: { app: 'negocios', label: 'Clientes', fields: [
-    { k: 'name', label: 'Cliente / negocio', required: true }, { k: 'contact', label: 'Contacto (WhatsApp)', ph: '300…' },
-    { k: 'kind', label: 'Tipo', type: 'select', options: ['Tienda local', 'Emprendedor', 'Empresa', 'Persona'] }, { k: 'note', label: 'Notas', type: 'textarea' },
+    { k: 'name', label: 'Cliente / negocio', required: true }, { k: 'contact', label: 'WhatsApp', ph: '300 555 1234' },
+    { k: 'source', label: 'Empresa que lo atiende', type: 'ref', ref: 'sources' },
+    { k: 'negocio', label: 'Tipo de negocio', ph: 'Barbería, droguería, restaurante…' }, { k: 'address', label: 'Dirección', ph: 'Barrio, calle…' },
+    { k: 'ig', label: 'Instagram', ph: '@negocio' }, { k: 'tiktok', label: 'TikTok', ph: '@negocio' }, { k: 'fb', label: 'Facebook' },
+    { k: 'email', label: 'Correo', type: 'url', ph: 'cliente@correo.com' }, { k: 'note', label: 'Notas', type: 'textarea' },
   ] },
   jobs: { app: 'negocios', label: 'Trabajos y entregas', fields: [
     { k: 'title', label: 'Trabajo', required: true }, { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' },
-    { k: 'source', label: 'Fuente', type: 'ref', ref: 'sources' }, { k: 'price', label: 'Valor acordado', type: 'money' },
-    { k: 'due', label: 'Entrega', type: 'date' },
-    { k: 'status', label: 'Estado', type: 'select', options: [['cotizado', 'Cotizado'], ['aprobado', 'Aprobado'], ['en curso', 'En curso'], ['entregado', 'Entregado'], ['pagado', 'Pagado']], default: 'cotizado' },
+    { k: 'source', label: 'Empresa', type: 'ref', ref: 'sources' }, { k: 'price', label: 'Valor acordado', type: 'money' },
+    { k: 'anticipo', label: 'Anticipo %', type: 'number', default: 50 }, { k: 'due', label: 'Entrega', type: 'date' },
+    { k: 'status', label: 'Estado', type: 'select', options: [['aprobado', 'Aprobado'], ['en curso', 'En curso'], ['entregado', 'Entregado'], ['pagado', 'Pagado']], default: 'aprobado' },
   ] },
   timeLogs: { app: 'negocios', label: 'Tiempo trabajado (cronómetro)', fields: [
     { k: 'job', label: 'Trabajo', type: 'ref', ref: 'jobs', refLabel: 'title' }, { k: 'minutes', label: 'Minutos', type: 'number', required: true },
@@ -123,10 +126,24 @@ export const SCHEMA = {
     { k: 'date', label: 'Fecha', type: 'date', today: true }, { k: 'due', label: 'Vence', type: 'date' },
     { k: 'paid', label: 'Pagado (crea ingreso en Finanzas)', type: 'check' }, { k: 'account', label: 'Entra a la cuenta', type: 'ref', ref: 'accounts' },
   ] },
+  cotizaciones: { app: 'negocios', label: 'Cotizaciones (borrador, enviada, aprobada, vencida, rechazada)', hidden: true, fields: [{ k: 'title', label: 'Cotización' }] },
+  abonos: { app: 'negocios', label: 'Abonos y pagos de clientes (entran solos a Finanzas)', fields: [
+    { k: 'job', label: 'Trabajo', type: 'ref', ref: 'jobs', refLabel: 'title', required: true }, { k: 'amount', label: 'Valor', type: 'money', required: true },
+    { k: 'kind', label: 'Tipo', type: 'select', options: [['anticipo', 'Anticipo'], ['abono', 'Abono'], ['saldo', 'Saldo final']], default: 'abono' },
+    { k: 'date', label: 'Fecha', type: 'date', today: true }, { k: 'account', label: 'Entra a la cuenta', type: 'ref', ref: 'accounts' },
+  ] },
+  clientLog: { app: 'negocios', label: 'Notas y mensajes de cada cliente', hidden: true, fields: [{ k: 'text', label: 'Nota' }] },
+  misiones: { app: 'negocios', label: 'Misiones del día (automáticas, tuyas o de Claude)', fields: [
+    { k: 'title', label: 'Misión', required: true }, { k: 'date', label: 'Día', type: 'date', today: true }, { k: 'minutes', label: 'Minutos', type: 'number', default: 30 },
+    { k: 'done', label: 'Cumplida', type: 'check' },
+  ] },
   prospects: { app: 'negocios', label: 'Prospectos', fields: [
-    { k: 'name', label: 'Negocio', required: true }, { k: 'contact', label: 'Contacto' },
-    { k: 'stage', label: 'Etapa', type: 'select', options: [['nuevo', 'Nuevo'], ['contactado', 'Contactado'], ['reunión', 'Reunión'], ['propuesta', 'Propuesta enviada'], ['ganado', 'Ganado ✅'], ['perdido', 'Perdido']], default: 'nuevo' },
-    { k: 'next', label: 'Próximo paso', ph: 'Escribirle el jueves' }, { k: 'nextDate', label: 'Fecha próximo paso', type: 'date' },
+    { k: 'name', label: 'Negocio', required: true }, { k: 'contact', label: 'WhatsApp' },
+    { k: 'temp', label: '¿Qué tan caliente?', type: 'select', options: [['caliente', '🔥 Caliente'], ['tibio', '🌤 Tibio'], ['frio', '❄️ Frío']], default: 'tibio' },
+    { k: 'interest', label: 'Qué le interesa', ph: 'Redes, página web, video, PC…' }, { k: 'potential', label: 'Cuánto le podría cobrar', type: 'money' },
+    { k: 'origin', label: 'Cómo lo conocí', type: 'select', options: ['Calle', 'Referido', 'Instagram', 'WhatsApp', 'TikTok', 'Otro'] },
+    { k: 'next', label: 'Próximo paso', ph: 'Escribirle el jueves' }, { k: 'nextDate', label: 'Fecha del próximo paso', type: 'date' },
+    { k: 'stage', label: 'Estado', type: 'select', options: [['nuevo', 'En proceso'], ['ganado', 'Ganado ✅'], ['perdido', 'Perdido']], default: 'nuevo' },
   ] },
 
   // ---------- NEXO Studio ----------

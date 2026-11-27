@@ -36,3 +36,13 @@ Acento rosa `#FF4F9A`, tema oscuro, mismo tamaño que los bocetos (`studio-estil
 - **Negocios**: mismos clientes; un trabajo aprobado (ej. 8 reels) crea sus videos solos.
 - **NEXO PLAN**: fecha + lugar de grabación → bloque 🔒 fijo con lugar y lista de planos.
 - **Aprobación**: PDF del guion para WhatsApp + plan del mes completo (calendario) para aprobar.
+
+## Detalles (ronda 2 y 3)
+- **Ideas**: lista aparte **y** botón para pasarla a video cuando quiera (el video empieza en la estación Idea). Etiquetas (humor, tutorial, antes/después, testimonio, tendencia). Idea con 7 días sin usar → aviso.
+- **Plan del mes**: calendario en cuadrícula por cliente, cada día con su video y estado; se comparte por WhatsApp (PDF/imagen) para aprobar.
+- **PDF del guion** (para el cliente): escenas con qué se ve y qué se dice + fecha/hora/lugar de grabación y qué debe preparar el cliente. Sin mapas técnicos.
+- **Entregar / Publicado**: link del video, texto para publicar (copy + hashtags), plantilla de WhatsApp "Tu video está listo" con el link, resultados (vistas y likes) a los 7 días.
+- **Lugares guardados**: dirección, luz, enchufes, horario, fotos de referencia y **mapa base** (puerta, mostrador, silla…); en cada plano solo se mueven cámara y persona sobre ese mapa.
+- **Avisos**: día antes de grabar (qué llevar + qué prepara el cliente), entrega cercana sin editar, idea vieja (7 días), anotar resultados a los 7 días.
+- **Crear rápido**: plantillas de plano (general, medio, primer plano, detalle, POV… con cámara y movimiento llenos), duplicar plano/escena, dictar el plano (llena qué dice / descripción).
+- Solo el plano es obligatorio; mapa, cámara y persona son opcionales.

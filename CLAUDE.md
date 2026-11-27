@@ -9,7 +9,7 @@ Datos personales del dueño (perfil, horario, metas): **no van en este repo púb
 | Base de datos | Supabase: un proyecto, login con Google, tiempo real entre dispositivos, RLS `user_id = auth.uid()` en todas las tablas. |
 | IA | Clave de Claude solo como secreto de Supabase (Edge Function `harvey`), nunca en el navegador. Modelo automático: Haiku · Sonnet · Opus. |
 | Claude en el chat | Lee los datos con el conector de Supabase. |
-| NEXO Plan | (27 nov 2026, fusión) La app oficial es NEXO PLAN (repo Nexo-plan) con su diseño, Hoy, Semana, Ejercicio y Progreso. Metas pasa a ser Proyectos (las 6 áreas + proyectos propios con estado) y Tareas 1–5 (importancia × urgencia) guardadas en NEXO Brain (`proyectos`, `tareas`). ⚡ Organizar propone y tú aplicas, solo en bloques Libre. Bloques 🔒 fijos / ↔ flexibles. `apps/plan` de la red queda solo como redirección. |
+| NEXO Plan | (27 nov 2026, fusión) La app oficial es NEXO PLAN (repo Nexo-plan) con su diseño, Hoy, Semana, Ejercicio y Progreso. Metas pasa a ser Proyectos (las 6 áreas + proyectos propios con estado; desde 1.9 sin metas: cada proyecto es nombre, notas y tareas) y Tareas 1–5 (importancia × urgencia) guardadas en NEXO Brain (`proyectos`, `tareas`). ⚡ Organizar propone y tú aplicas, solo en bloques Libre. Bloques 🔒 fijos / ↔ flexibles. `apps/plan` de la red queda solo como redirección. |
 | Plan de ventas | Servicios, precios, combos, meta diaria y registro diario se cargan como datos en Supabase (no en el código). |
 | Colores | Base actual + acentos del documento de diseño; panel de 4 botones en el mismo lugar. |
 | Cerebros | Donna agenda · Louis contabilidad · Harvey estrategia y clientes (jefe) · Mike astuto y analítico · Jessica visión. Inspirados en Suits; frases originales. |

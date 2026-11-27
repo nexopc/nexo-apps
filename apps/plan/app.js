@@ -222,6 +222,6 @@ const QUICK = [
   { label: 'Bloque', icon: '＋', color: '#00E5FF', run: () => newBlock(day) },
   { label: 'Organizar', icon: '⚡', color: '#9B5CFF', run: () => runOrganize([day]) },
   { label: 'Tarea', icon: '✅', color: '#1CE783', run: () => openForm(tareasMod, null, { imp: 3, urg: 3, minutes: 30, done: false }) },
-  { label: 'Idea', icon: '💡', color: '#FFC23D', run: (api) => api.go('proyectos') },
+  { label: 'Idea', icon: '💡', color: '#FFC23D', run: (api) => { api.go('proyectos'); setTimeout(() => document.querySelector('[data-idea] input')?.focus(), 80); } },
 ];
 boot({ appId: 'plan', version: VERSION, home, quick: QUICK, modules: [semana, tareasMod, proyMod, horario] });

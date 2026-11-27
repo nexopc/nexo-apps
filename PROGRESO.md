@@ -26,9 +26,11 @@
 - [x] C2 Finanzas v2: registrar en 3 toques (qué → cuánto con botones que suman → de dónde), moneda por movimiento COP/USD/EUR, ＋ cuenta/tarjeta al instante, saldos en su moneda, bolsillos + alcancía 🪙, suscripciones con la cuenta que paga, tasas automáticas y editables
 - [x] C3 Negocios v2: fuentes por empresa (estado, meta del mes), planes con horas reales/costos → ganancia por hora y precio mínimo automáticos, calculadora de costo, cronómetro conectado a la burbuja
 - [x] Probado (simulado) en iPhone 14, Pixel 7 y Windows: todas las secciones abren sin errores ni desbordes
-- [ ] C4 Studio v2 (tablero + línea de metro, guion modular, orden de grabación, biblioteca)
-- [ ] C5 NEXO Plan nuevo + Aprende (bloques fijos/flexibles, proyectos, puntaje 1–5, semana base del domingo)
-- [ ] C6 Harvey v2 (varios cerebros a la vez, avisos push + chat)
+- [x] C4 Studio v2: tablero + línea de metro por video, guion 100 % modular (12 tipos de bloque, mover, duplicar, deshacer), orden de grabación por lugar y persona con tomas y cortes, plan de contenido mensual por cliente (enviar por WhatsApp, aprobado / pide cambios), idea rápida con voz, biblioteca con búsqueda y reusar guiones
+- [x] C5 NEXO Plan nuevo (`apps/plan`): horario base fijo/flexible, "solo hoy" vs "todos los días", días ajustados, organizador por importancia × urgencia (sin choques, deshacer), semana, proyectos con estado y pasos; Aprende v2: fichas por tema, estudiar con el cronómetro, clases fijas al Plan, agendar lo que falta
+- [x] C6 Harvey v2: varios cerebros a la vez (usa Opus), avisos de los 5 cerebros, reporte diario en el chat (uno por día), notificación del dispositivo, Mi vida en números, memoria (recordar con Sí/No), reorganizar_dia y tarea_plan escriben en el Plan nuevo; Hub solo "Mis apps"
+- [ ] C7 Semana base: tarea programada creada (domingos 5:43 p. m.), pero **sin el conector de Supabase**: hay que agregárselo desde claude.ai → Tareas programadas. Mientras tanto la semana se arma con ⚡ Organizar.
+- [x] Pruebas: 8 baterías con Playwright en iPhone 14, Pixel 7 y Windows (atrás, notas, cronómetro, Finanzas, Negocios, Plan, Aprende, Studio, Harvey, Hub)
 
 ## Siguiente
 - [ ] Primer inicio de sesión real con Google en Android, iPhone y PC (comprobar A4)

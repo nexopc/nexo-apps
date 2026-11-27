@@ -275,7 +275,8 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
   if (appId !== 'harvey') document.body.append(fab, dock);
   const notesBtn = h('<button class="notes-fab" aria-label="Notas" title="Notas (Alt+N)">📝</button>');
   const bubble = h('<button class="timer-bubble" hidden aria-label="Cronómetro"><span class="tb-dot"></span><b class="tb-t">0:00</b><span class="tb-l"></span></button>');
-  document.body.append(notesBtn);
+  if (appId === 'harvey') { notesBtn.className = 'icon-btn'; root.querySelector('.top-actions').prepend(notesBtn); } // en el chat no tapa los botones Sí / No
+  else document.body.append(notesBtn);
   root.querySelector('.top-actions').prepend(bubble);
   notesBtn.onclick = () => openNotes();
   bubble.onclick = () => openTimer();
@@ -376,6 +377,8 @@ export async function boot({ appId, version, modules, home, staticHome = false, 
   history.replaceState({}, '', '#home');
   current = navMods[0];
   if (first !== 'home' && navMods.some((m) => m.id === first)) go(first); else go('home', false);
+  // Los cerebros revisan tus apps y dejan su reporte del día (una vez al día, sin gastar IA)
+  setTimeout(() => import('./avisos.js').then((m) => m.dailyReport()).catch(() => {}), 6000);
   checkUpdate(appId, prefs.get('ver:' + appId)).then((u) => { if (u.has) $('[data-a=update] .badge').hidden = false; });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('../../sw.js', { scope: '../../' }).catch(() => {});
   return api;

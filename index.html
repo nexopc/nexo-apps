@@ -36,6 +36,8 @@
   .ask { display: flex; gap: 8px; margin-top: 18px; }
   .ask input { flex: 1; min-width: 0; min-height: 50px; border-radius: 14px; border: 1.5px solid color-mix(in srgb, var(--c-ai) 50%, var(--line)); background: var(--panel); padding: 0 16px; }
   .ask input:focus { outline: none; border-color: var(--c-ai); }
+  .mis { margin: 22px 0 0; font: 700 13px var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .tile.legacy { opacity: .7; }
   .foot { margin-top: 28px; display: flex; gap: 8px; flex-wrap: wrap; }
 </style>
 </head>
@@ -47,7 +49,7 @@
   </header>
   <h1 class="greet" id="greet">Hola, Cristóbal</h1>
   <p class="muted" id="today" style="margin:0;text-transform:capitalize"></p>
-  <form class="ask" id="ask"><input id="q" placeholder="Pregúntale a Harvey o pídele que registre algo…" aria-label="Pregunta para Harvey"><button class="btn btn-ai">🟣 Harvey</button></form>
+  <h2 class="mis">Mis apps</h2>
   <div class="tiles" id="tiles"></div>
   <div class="foot">
     <button class="btn btn-edit ghost sm" id="upcore">⟳ Actualizar núcleo NEXO</button>
@@ -71,16 +73,17 @@
   document.getElementById('today').textContent = fmt.day();
 
   const stat = {
-    plan: () => { const p = store.raw('planBridge')[0]; return p ? `<strong>${(p.tareas || []).length}</strong> tareas pendientes` : 'Tu horario, metas y ejercicio'; },
+    plan: () => { const n = store.list('tareas').filter((t) => !t.done).length; return n ? `<strong>${n}</strong> tareas pendientes` : 'Tu horario, proyectos y tareas'; },
+    planclasico: () => 'Tu app anterior · sigue funcionando',
     finanzas: () => { const m = fmt.today().slice(0, 7); const tx = store.list('transactions').filter((t) => (t.date || '').startsWith(m)); const g = tx.filter((t) => t.type === 'gasto').reduce((a, t) => a + (+t.amount || 0), 0); return `<strong>${fmt.money(g)}</strong> gastado este mes`; },
     negocios: () => { const n = store.list('jobs').filter((j) => !['pagado'].includes(j.status)).length; return `<strong>${n}</strong> trabajos activos`; },
     studio: () => { const n = store.list('videos').filter((v) => v.status !== 'publicado').length; return `<strong>${n}</strong> videos en proceso`; },
-    aprende: () => { const n = store.list('exams').filter((e) => e.date >= fmt.today()).length; return `<strong>${n}</strong> evaluaciones próximas`; },
-    harvey: () => 'Tu asistente con 5 cerebros',
+    aprende: () => { const n = store.list('exams').filter((e) => e.date >= fmt.today()).length; const t = store.list('topics').length; return t ? `<strong>${t}</strong> temas · ${n} evaluaciones próximas` : `<strong>${n}</strong> evaluaciones próximas`; },
+    harvey: () => { const n = store.get('reportes', fmt.today())?.altas || 0; return n ? `<strong>${n}</strong> avisos importantes hoy` : 'Tu asistente con 5 cerebros'; },
   };
   function paint() {
     const t = document.getElementById('tiles');
-    t.innerHTML = allApps().map((a) => `<a class="tile" href="${esc(a.path || a.url)}" style="--a:${esc(a.accent || '#9B5CFF')}">
+    t.innerHTML = allApps().map((a) => `<a class="tile ${a.legacy ? 'legacy' : ''}" href="${esc(a.path || a.url)}" style="--a:${esc(a.accent || '#9B5CFF')}">
       <span class="ic">${LOGOS[a.id] || LOGOS.custom}</span><span class="ver">v${esc(prefs.get('ver:' + a.id) || '1.0.0')}</span>
       <span><b>${esc(a.name)}</b><div class="stat">${a.custom ? esc(a.tagline || 'App agregada') : stat[a.id]?.() || ''}</div></span></a>`).join('')
       + `<button class="tile add" id="addapp"><span class="ic">${LOGOS.custom}</span><b>Agregar app</b><span class="stat">Suma una app nueva a la red</span></button>`;
@@ -102,7 +105,6 @@
       store.add('apps', { id: 'x' + store.uid().slice(0, 6), name: body.an.value.trim(), tagline: body.at.value.trim(), url: body.au.value.trim() || '#', path: body.au.value.trim() || '#', accent: body.ac.value });
       toast('App agregada'); s.close(); });
   }
-  document.getElementById('ask').addEventListener('submit', (e) => { e.preventDefault(); const q = document.getElementById('q').value.trim(); location.href = 'apps/harvey/index.html' + (q ? '#q=' + encodeURIComponent(q) : ''); });
   document.getElementById('upcore').onclick = async () => {
     if (!(await confirmSheet('Actualizar núcleo', 'Descarga la versión más nueva del diseño, la seguridad y Harvey. Tus datos no se tocan.', { yes: 'Actualizar' }))) return;
     if (window.caches) await caches.delete('nexo-core');

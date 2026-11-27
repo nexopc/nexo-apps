@@ -292,3 +292,7 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.15; margin: 0; text-wra
 .pick:active { transform: scale(.96); }
 .linkish { background: none; border: 0; color: var(--c-edit); font: 600 13px var(--font); padding: 4px 0; cursor: pointer; }
 .undo-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(150px + var(--safe-b)); z-index: 95; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); box-shadow: var(--shadow); }
+
+/* espacio al final para que el último elemento nunca quede debajo de los botones flotantes */
+.main { padding-bottom: calc(220px + var(--safe-b)); }
+[data-os="windows"] .main, [data-os="desktop"] .main { padding-bottom: 120px; }

@@ -21,6 +21,15 @@
 - [x] B5 Colores mezclados + panel de 4 botones
 - [x] B6 Pruebas en los 3 sistemas y publicar
 
+## Fase C · v2 (orden "Plata primero")
+- [x] C1 Global: ‹ Atrás siempre visible en iPhone (no depende del navegador) + deslizar desde el borde; atrás = cierra ventana → Inicio → Hub; ventanas con ✕ y deslizar hacia abajo; notas rápidas 📝 (una línea + Enter, carpetas, vínculo a registros); cronómetro común con burbuja ⏱ en todas las apps
+- [x] C2 Finanzas v2: registrar en 3 toques (qué → cuánto con botones que suman → de dónde), moneda por movimiento COP/USD/EUR, ＋ cuenta/tarjeta al instante, saldos en su moneda, bolsillos + alcancía 🪙, suscripciones con la cuenta que paga, tasas automáticas y editables
+- [x] C3 Negocios v2: fuentes por empresa (estado, meta del mes), planes con horas reales/costos → ganancia por hora y precio mínimo automáticos, calculadora de costo, cronómetro conectado a la burbuja
+- [x] Probado (simulado) en iPhone 14, Pixel 7 y Windows: todas las secciones abren sin errores ni desbordes
+- [ ] C4 Studio v2 (tablero + línea de metro, guion modular, orden de grabación, biblioteca)
+- [ ] C5 NEXO Plan nuevo + Aprende (bloques fijos/flexibles, proyectos, puntaje 1–5, semana base del domingo)
+- [ ] C6 Harvey v2 (varios cerebros a la vez, avisos push + chat)
+
 ## Siguiente
 - [ ] Primer inicio de sesión real con Google en Android, iPhone y PC (comprobar A4)
 - [ ] Guardar el perfil privado en Supabase (tabla `perfil`) para que Harvey te conozca

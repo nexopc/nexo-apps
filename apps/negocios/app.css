@@ -43,3 +43,11 @@ body { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, 
 .num-card { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--panel); border: 1.5px solid var(--line); }
 .num-card.ok { border-color: var(--c-create); background: color-mix(in srgb, var(--c-create) 8%, var(--panel)); }
 .num-card .ic { font-size: 22px; } .num-card b { display: block; font-size: 14px; } .num-card .muted { font-size: 12px; }
+
+/* v2: fuentes, planes con valores derivados, calculadora */
+.src { text-align: left; display: grid; gap: 8px; cursor: pointer; border-top: 4px solid var(--k); }
+.plan { cursor: pointer; display: grid; gap: 6px; }
+.plan .dv { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.plan .dv i { font-style: normal; opacity: .8; }
+.calc { display: grid; gap: 12px; }
+.crow { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }

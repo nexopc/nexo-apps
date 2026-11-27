@@ -45,6 +45,8 @@ export const SCHEMA = {
   sources: { app: 'negocios', label: 'Marcas / fuentes de ingreso', fields: [
     { k: 'name', label: 'Marca o fuente', required: true, ph: 'NEXO PC, Agencia, Marca personal…' }, { k: 'color', label: 'Color', type: 'color' },
     { k: 'lema', label: 'Lema' }, { k: 'cliente', label: 'Cliente ideal' },
+    { k: 'estado', label: 'Estado', type: 'select', options: [['activa', '🟢 Activa'], ['pausada', '⏸ Pausada'], ['futura', '📅 Empieza en una fecha']], default: 'activa' },
+    { k: 'inicio', label: 'Empieza (si es futura)', type: 'date' }, { k: 'metaMes', label: 'Meta de ingresos al mes', type: 'money' },
     { k: 'account', label: 'Cuenta de Finanzas', type: 'ref', ref: 'accounts' },
   ] },
   services: { app: 'negocios', label: 'Catálogo de servicios', fields: [
@@ -52,6 +54,7 @@ export const SCHEMA = {
     { k: 'plan', label: 'Plan', type: 'select', options: ['Básico', 'Pro', 'Premium', 'Esencial', 'Completo', 'Élite', 'Único'] },
     { k: 'price', label: 'Precio', type: 'money', required: true }, { k: 'monthly', label: 'Mensualidad (si aplica)', type: 'money' },
     { k: 'mensual', label: 'Es un servicio mensual', type: 'check' }, { k: 'hours', label: 'Horas estimadas', type: 'number' },
+    { k: 'costos', label: 'Costos por trabajo (datos, transporte, materiales…)', type: 'money' },
     { k: 'anticipo', label: 'Anticipo %', type: 'number', default: 50 },
     { k: 'desc', label: 'Qué incluye', type: 'textarea' }, { k: 'noIncluye', label: 'No incluye', type: 'textarea' },
   ] },
@@ -82,7 +85,8 @@ export const SCHEMA = {
   ] },
   timeLogs: { app: 'negocios', label: 'Tiempo trabajado (cronómetro)', fields: [
     { k: 'job', label: 'Trabajo', type: 'ref', ref: 'jobs', refLabel: 'title' }, { k: 'minutes', label: 'Minutos', type: 'number', required: true },
-    { k: 'date', label: 'Fecha', type: 'date', today: true },
+    { k: 'date', label: 'Fecha', type: 'date', today: true }, { k: 'label', label: 'Qué hiciste' },
+    { k: 'kind', label: 'Tipo', type: 'select', options: [['trabajo', 'Trabajo'], ['estudio', 'Estudio'], ['otro', 'Otro']], default: 'trabajo' },
   ] },
   invoices: { app: 'negocios', label: 'Cobros y cuentas de cobro', fields: [
     { k: 'number', label: 'N.º', ph: 'CC-001' }, { k: 'client', label: 'Cliente', type: 'ref', ref: 'clients' },
